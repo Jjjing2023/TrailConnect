@@ -6,7 +6,7 @@
 - Shuyue Zhang
 - Mingda Xie
 - Lixing Chen
-- Qi Zheng *(submitter)*
+- Qi Zheng
 
 ---
 
