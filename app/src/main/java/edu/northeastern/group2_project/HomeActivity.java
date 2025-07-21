@@ -2,6 +2,7 @@ package edu.northeastern.group2_project;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -51,6 +52,16 @@ public class HomeActivity extends AppCompatActivity {
 
         // Set up logout button
         logoutButton.setOnClickListener(view -> confirmLogout());
+
+        // place holder button for event detail page
+        Button eventDetailPlaceHolder = findViewById(R.id.eventDetails);
+        eventDetailPlaceHolder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(HomeActivity.this, eventDetailHeader.class);
+                startActivity(intent);
+            }
+        });
     }
 
     private void confirmLogout() {
