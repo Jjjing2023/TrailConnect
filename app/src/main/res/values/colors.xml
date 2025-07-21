@@ -2,4 +2,14 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="background_dark">#10151A</color>         <!-- Main background color -->
+    <color name="surface_dark">#1A212A</color>            <!-- Surface, e.g. cards, textfields -->
+    <color name="primary_dark">#1976D2</color>            <!-- Primary accent (buttons etc.) -->
+    <color name="accent_dark">#FFAB00</color>             <!-- Secondary accent -->
+    <color name="text_primary_dark">#FFFFFFFF</color>      <!-- Main text color: white -->
+    <color name="text_secondary_dark">#A0A4AB</color>      <!-- Secondary text color -->
+    <color name="error_dark">#CF6679</color>              <!-- Error color (red) -->
+    <color name="google_red">#DB4437</color>              <!-- Google brand color -->
+    <color name="github_black">#24292F</color>            <!-- GitHub brand color -->
+    <color name="github_white">#FFFFFF</color>            <!-- GitHub text color -->
 </resources>
