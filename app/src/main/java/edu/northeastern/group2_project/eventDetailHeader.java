@@ -5,6 +5,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -88,6 +91,29 @@ public class eventDetailHeader extends AppCompatActivity {
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             Log.d("TabLayoutMediator", "Binding tab for position " + position);
         }).attach();
+
+        // force style of dot page indicator
+        TabLayout tabLayoutIndicator = findViewById(R.id.tabLayoutIndicator);
+        tabLayoutIndicator.post(() -> {
+            for (int i = 0; i < tabLayoutIndicator.getTabCount(); i++) {
+                View tab = ((ViewGroup) tabLayoutIndicator.getChildAt(0)).getChildAt(i);
+                ViewGroup.LayoutParams params = tab.getLayoutParams();
+
+                // Set exact width and height for dot tab
+                params.width = (int) TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP, 6, tab.getResources().getDisplayMetrics());
+                params.height = (int) TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP, 6, tab.getResources().getDisplayMetrics());
+
+                // dd spacing
+                if (params instanceof ViewGroup.MarginLayoutParams) {
+                    ((ViewGroup.MarginLayoutParams) params).setMargins(8, 0, 8, 0); // spacing between dots
+                }
+
+                tab.setLayoutParams(params);
+            }
+        });
+
 
         // Auto-scroll every 3 seconds
         final Handler handler = new Handler(Looper.getMainLooper());

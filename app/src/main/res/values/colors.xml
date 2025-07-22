@@ -12,4 +12,5 @@
     <color name="google_red">#DB4437</color>              <!-- Google brand color -->
     <color name="github_black">#24292F</color>            <!-- GitHub brand color -->
     <color name="github_white">#FFFFFF</color>            <!-- GitHub text color -->
+    <color name="light_gray">#CCCCCC</color>
 </resources>
