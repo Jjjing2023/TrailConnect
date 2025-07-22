@@ -58,8 +58,11 @@ public class HomeActivity extends AppCompatActivity {
         eventDetailPlaceHolder.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                String eventId = "test_event_001"; // temporary ID for testing
                 Intent intent = new Intent(HomeActivity.this, eventDetailHeader.class);
+                intent.putExtra("EVENT_ID", eventId);
                 startActivity(intent);
+
             }
         });
     }
