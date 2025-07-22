@@ -1,10 +1,12 @@
 package edu.northeastern.group2_project;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -35,6 +37,7 @@ public class eventDetailHeader extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.event_detail_header);
 
+        // todo: pass real event_id via event list
         eventId = getIntent().getStringExtra("EVENT_ID");
         if (eventId == null) {
             Toast.makeText(this, "No event ID provided", Toast.LENGTH_SHORT).show();
@@ -42,10 +45,13 @@ public class eventDetailHeader extends AppCompatActivity {
             return;
         }
 
-
         ViewPager2 viewPager = findViewById(R.id.viewPagerImages);
         ImageButton favoriteButton = findViewById(R.id.buttonFavorite);
         TabLayout tabLayout = findViewById(R.id.tabLayoutIndicator);
+        ImageButton shareButton = findViewById(R.id.buttonShare);
+        // todo: settext via data pulled from database
+        TextView textEventTitle = findViewById(R.id.textEventTitle);
+
         boolean[] isFavorited = {false};
 
         db = FirebaseFirestore.getInstance();
@@ -122,6 +128,23 @@ public class eventDetailHeader extends AppCompatActivity {
                         .delete();
             }
             isFavorited[0] = !isFavorited[0];
+        });
+
+        // make share button interactive
+        shareButton.setOnClickListener(v->{
+            String eventTitle = textEventTitle.getText().toString();
+            String eventDescription = "Join us for an exciting hike!";
+            //todo: use firebase dynamic links to create smart URLs for sharing
+            String shareText = eventTitle + "\n\n" + eventDescription;
+
+            Intent sendIntent = new Intent();
+            sendIntent.setAction(Intent.ACTION_SEND);
+            sendIntent.putExtra(Intent.EXTRA_TEXT, shareText);
+            sendIntent.setType("text/plain");
+
+            Intent shareIntent = Intent.createChooser(sendIntent, "Share this event via");
+            startActivity(shareIntent);
+
         });
 
     }
