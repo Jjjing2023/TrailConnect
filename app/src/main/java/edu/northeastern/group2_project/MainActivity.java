@@ -113,8 +113,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void signInWithGoogle() {
-        Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-        startActivityForResult(signInIntent, RC_SIGN_IN);
+        // First sign out from Google to allow account selection
+        mGoogleSignInClient.signOut()
+                .addOnCompleteListener(this, task -> {
+                    // After signing out, start the sign-in process
+                    Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+                    startActivityForResult(signInIntent, RC_SIGN_IN);
+                });
     }
 
     @Override
@@ -149,7 +154,46 @@ public class MainActivity extends AppCompatActivity {
                             // Sign in success
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
-                            updateUI(user);
+
+                            // Write user info to Firestore (for Google sign-in)
+                            if (user != null) {
+                                String userId = user.getUid();
+                                String email = user.getEmail();
+                                String displayName = user.getDisplayName();
+                                String profileImageUrl = (user.getPhotoUrl() != null) ? user.getPhotoUrl().toString() : "https://via.placeholder.com/150";
+
+                                // Try to split displayName into firstName and lastName
+                                String firstName = "";
+                                String lastName = "";
+                                if (displayName != null && !displayName.isEmpty()) {
+                                    String[] parts = displayName.trim().split(" ", 2);
+                                    firstName = parts[0];
+                                    if (parts.length > 1) {
+                                        lastName = parts[1];
+                                    }
+                                }
+
+                                java.util.Map<String, Object> userData = new java.util.HashMap<>();
+                                userData.put("firstName", firstName);
+                                userData.put("lastName", lastName);
+                                userData.put("email", email);
+                                userData.put("profileImageUrl", profileImageUrl);
+                                userData.put("name", displayName != null ? displayName : (firstName + " " + lastName));
+
+                                com.google.firebase.firestore.FirebaseFirestore db = com.google.firebase.firestore.FirebaseFirestore.getInstance();
+                                db.collection("users").document(userId).set(userData)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Log.d(TAG, "Google user info written to Firestore.");
+                                            updateUI(user);
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Log.w(TAG, "Error writing Google user info to Firestore", e);
+                                            Toast.makeText(MainActivity.this, "Failed to save user info.", Toast.LENGTH_SHORT).show();
+                                            updateUI(user);
+                                        });
+                            } else {
+                                updateUI(user);
+                            }
                         } else {
                             // Sign in fails
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
