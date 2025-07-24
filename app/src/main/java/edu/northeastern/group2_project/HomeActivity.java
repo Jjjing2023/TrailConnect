@@ -10,17 +10,29 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
 import edu.northeastern.group2_project.UserLocalStorage;
 
 public class HomeActivity extends AppCompatActivity {
+    private GoogleSignInClient mGoogleSignInClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
+
+        // Configure Google Sign-In for logout
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
 
         TextView welcomeText = findViewById(R.id.welcomeText);
         Button logoutButton = findViewById(R.id.logoutButton);
@@ -60,7 +72,7 @@ public class HomeActivity extends AppCompatActivity {
             public void onClick(View view) {
                 // todo: pass real data from event list
                 String eventId = "test_event_001"; // temporary ID for testing
-                Intent intent = new Intent(HomeActivity.this, eventDetailHeader.class);
+                Intent intent = new Intent(HomeActivity.this, eventDetail.class);
                 intent.putExtra("EVENT_ID", eventId);
                 startActivity(intent);
 
@@ -78,19 +90,23 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void logout() {
-        // Sign out from Firebase
-        FirebaseAuth.getInstance().signOut();
+        // Sign out from Google Sign-In
+        mGoogleSignInClient.signOut()
+                .addOnCompleteListener(this, task -> {
+                    // Sign out from Firebase
+                    FirebaseAuth.getInstance().signOut();
 
-        // Clear locally stored user data
-        UserLocalStorage localStorage = new UserLocalStorage(this);
-        localStorage.clearUserData();
+                    // Clear locally stored user data
+                    UserLocalStorage localStorage = new UserLocalStorage(this);
+                    localStorage.clearUserData();
 
-        Toast.makeText(this, "You've been logged out", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "You've been logged out", Toast.LENGTH_SHORT).show();
 
-        // Navigate back to login screen
-        Intent intent = new Intent(HomeActivity.this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+                    // Navigate back to login screen
+                    Intent intent = new Intent(HomeActivity.this, MainActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                });
     }
 }
