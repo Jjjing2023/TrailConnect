@@ -1,5 +1,6 @@
 package edu.northeastern.group2_project;
 
+import edu.northeastern.group2_project.ProfileActivity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -8,6 +9,7 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -82,7 +84,14 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         RecyclerView attendeesRecyclerView = findViewById(R.id.attendeesRecyclerView);
         RecyclerView attendeesAvatarRecyclerView = findViewById(R.id.attendeesAvatarRecyclerView);
         attendeesAvatarRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        
+
+        // Contact Host button
+        ImageButton contactButton = findViewById(R.id.btn_contact);
+        contactButton.setOnClickListener(v -> {
+            // For now, just a Toast message
+            Toast.makeText(this, "Contact Host coming soon…", Toast.LENGTH_SHORT).show();
+        });
+
         // Setup RecyclerView for attendees
         attendeesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         attendeesRecyclerView.setNestedScrollingEnabled(false);
@@ -215,6 +224,12 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
     }
 
+    private void openProfile(String username) {
+        Intent i = new Intent(this, ProfileActivity.class);
+        i.putExtra(ProfileActivity.EXTRA_USERNAME, username);
+        startActivity(i);
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         Log.d("EventDetail", "Google Maps loaded successfully");
@@ -298,6 +313,13 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         if (hostId != null) {
                             loadHostInfo(hostId, hostProfileImage, hostName);
                         }
+                        // when user taps host avatar/name, open ProfileActivity
+                        hostProfileImage.setOnClickListener(v ->
+                            openProfile(hostName.getText().toString())
+                        );
+                        hostName.setOnClickListener(v ->
+                            openProfile(hostName.getText().toString())
+                        );
 
                         // Load attendees information
                         if (attendeeIds != null && !attendeeIds.isEmpty()) {
