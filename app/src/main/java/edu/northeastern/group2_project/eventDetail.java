@@ -30,6 +30,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -230,9 +232,8 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
             startActivity(shareIntent);
         });
 
+        // Handle price showing logic
         TextView priceTextView = findViewById(R.id.event_price);
-        Button joinButton = findViewById(R.id.join_button);
-
 
         db.collection("events").document(eventId)
                 .get()
@@ -255,17 +256,18 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                     Log.e("EventDetail", "Error fetching price from Firestore: " + e.getMessage());
                 });
 
+        // Handle Join Button Logic
+        Button joinButton = findViewById(R.id.join_button);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("users").child(userId);
-        DatabaseReference eventRef = FirebaseDatabase.getInstance().getReference("events").child(eventId);
+        DocumentReference eventRef = db.collection("events").document(eventId);
+        DocumentReference userRef = db.collection("users").document(userId);
 
-
-        // check if user has joined this event
-        userRef.child("joinedEvents").addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                boolean alreadyJoined = snapshot.hasChild(eventId);
-                // If user has joined this event, able to cancel
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                List<String> joinedEvents = (List<String>) documentSnapshot.get("joinedEvents");
+                boolean alreadyJoined = joinedEvents != null && joinedEvents.contains(eventId);
+                // If already joined, show "JOINED"
                 if (alreadyJoined) {
                     joinButton.setText("Joined");
                     joinButton.setEnabled(false);
@@ -275,31 +277,24 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                                 .setTitle("Confirm Join")
                                 .setMessage("Are you sure you want to join this event?")
                                 .setPositiveButton("Yes", (dialog, which) -> {
-                                    // update events/{eventId}/attendees
-                                    eventRef.child("attendees").child(userId).setValue(true);
+                                    // 1. Add userId to events/{eventId}/attendees
+                                    eventRef.update("attendees", FieldValue.arrayUnion(userId));
 
-                                    // update users/{userId}/joinedEvents
-                                    userRef.child("joinedEvents").child(eventId).setValue(true);
-
-                                    Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
-
+                                    // Add eventId to users/{userId}/joinedEvents
+                                    userRef.update("joinedEvents", FieldValue.arrayUnion(eventId));
 
                                     joinButton.setText("Joined");
                                     joinButton.setEnabled(false);
+                                    Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
                                 })
                                 .setNegativeButton("Cancel", null)
                                 .show();
                     });
                 }
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Snackbar.make(findViewById(android.R.id.content), "Failed to load join status.", Snackbar.LENGTH_SHORT).show();
-            }
+        }).addOnFailureListener(e -> {
+            Snackbar.make(findViewById(android.R.id.content), "Failed to check join status.", Snackbar.LENGTH_SHORT).show();
         });
-
-
     }
 
     private void openProfile(String username) {
