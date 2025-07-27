@@ -14,14 +14,22 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -221,6 +229,76 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
             Intent shareIntent = Intent.createChooser(sendIntent, "Share this event via");
             startActivity(shareIntent);
         });
+
+        TextView priceTextView = findViewById(R.id.event_price);
+        Button joinButton = findViewById(R.id.join_button);
+
+
+        db.collection("events").document(eventId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Number priceNumber = documentSnapshot.getDouble("price"); // Use getDouble or getLong directly from Firestore DocumentSnapshot
+                        if (priceNumber != null) {
+                            long priceValue = priceNumber.longValue();
+                            String priceText = priceValue == 0 ? "FREE" : "$" + priceValue + "/person";
+                            priceTextView.setText(priceText);
+                        } else {
+                            priceTextView.setText("FREE");
+                        }
+                    } else {
+                        priceTextView.setText("FREE"); // Event document not found
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    priceTextView.setText("FREE"); // Error fetching document
+                    Log.e("EventDetail", "Error fetching price from Firestore: " + e.getMessage());
+                });
+
+
+        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("users").child(userId);
+        DatabaseReference eventRef = FirebaseDatabase.getInstance().getReference("events").child(eventId);
+
+
+        // check if user has joined this event
+        userRef.child("joinedEvents").addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean alreadyJoined = snapshot.hasChild(eventId);
+                // If user has joined this event, able to cancel
+                if (alreadyJoined) {
+                    joinButton.setText("Joined");
+                    joinButton.setEnabled(false);
+                } else {
+                    joinButton.setOnClickListener(v -> {
+                        new AlertDialog.Builder(eventDetail.this)
+                                .setTitle("Confirm Join")
+                                .setMessage("Are you sure you want to join this event?")
+                                .setPositiveButton("Yes", (dialog, which) -> {
+                                    // update events/{eventId}/attendees
+                                    eventRef.child("attendees").child(userId).setValue(true);
+
+                                    // update users/{userId}/joinedEvents
+                                    userRef.child("joinedEvents").child(eventId).setValue(true);
+
+                                    Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
+
+
+                                    joinButton.setText("Joined");
+                                    joinButton.setEnabled(false);
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Snackbar.make(findViewById(android.R.id.content), "Failed to load join status.", Snackbar.LENGTH_SHORT).show();
+            }
+        });
+
 
     }
 
