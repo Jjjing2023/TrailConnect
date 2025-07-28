@@ -1,5 +1,6 @@
 package edu.northeastern.group2_project;
 
+import edu.northeastern.group2_project.ProfileActivity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -8,18 +9,29 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -82,7 +94,14 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         RecyclerView attendeesRecyclerView = findViewById(R.id.attendeesRecyclerView);
         RecyclerView attendeesAvatarRecyclerView = findViewById(R.id.attendeesAvatarRecyclerView);
         attendeesAvatarRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        
+
+        // Contact Host button
+        ImageButton contactButton = findViewById(R.id.btn_contact);
+        contactButton.setOnClickListener(v -> {
+            // For now, just a Toast message
+            Toast.makeText(this, "Contact Host coming soon…", Toast.LENGTH_SHORT).show();
+        });
+
         // Setup RecyclerView for attendees
         attendeesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         attendeesRecyclerView.setNestedScrollingEnabled(false);
@@ -213,6 +232,75 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
             startActivity(shareIntent);
         });
 
+        // Handle price showing logic
+        TextView priceTextView = findViewById(R.id.event_price);
+
+        db.collection("events").document(eventId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Number priceNumber = documentSnapshot.getDouble("price"); // Use getDouble or getLong directly from Firestore DocumentSnapshot
+                        if (priceNumber != null) {
+                            long priceValue = priceNumber.longValue();
+                            String priceText = priceValue == 0 ? "FREE" : "$" + priceValue + "/person";
+                            priceTextView.setText(priceText);
+                        } else {
+                            priceTextView.setText("FREE");
+                        }
+                    } else {
+                        priceTextView.setText("FREE"); // Event document not found
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    priceTextView.setText("FREE"); // Error fetching document
+                    Log.e("EventDetail", "Error fetching price from Firestore: " + e.getMessage());
+                });
+
+        // Handle Join Button Logic
+        Button joinButton = findViewById(R.id.join_button);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        DocumentReference eventRef = db.collection("events").document(eventId);
+        DocumentReference userRef = db.collection("users").document(userId);
+
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                List<String> joinedEvents = (List<String>) documentSnapshot.get("joinedEvents");
+                boolean alreadyJoined = joinedEvents != null && joinedEvents.contains(eventId);
+                // If already joined, show "JOINED"
+                if (alreadyJoined) {
+                    joinButton.setText("Joined");
+                    joinButton.setEnabled(false);
+                } else {
+                    joinButton.setOnClickListener(v -> {
+                        new AlertDialog.Builder(eventDetail.this)
+                                .setTitle("Confirm Join")
+                                .setMessage("Are you sure you want to join this event?")
+                                .setPositiveButton("Yes", (dialog, which) -> {
+                                    // 1. Add userId to events/{eventId}/attendees
+                                    eventRef.update("attendees", FieldValue.arrayUnion(userId));
+
+                                    // Add eventId to users/{userId}/joinedEvents
+                                    userRef.update("joinedEvents", FieldValue.arrayUnion(eventId));
+
+                                    joinButton.setText("Joined");
+                                    joinButton.setEnabled(false);
+                                    Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    });
+                }
+            }
+        }).addOnFailureListener(e -> {
+            Snackbar.make(findViewById(android.R.id.content), "Failed to check join status.", Snackbar.LENGTH_SHORT).show();
+        });
+    }
+
+    private void openProfile(String username) {
+        Intent i = new Intent(this, ProfileActivity.class);
+        i.putExtra(ProfileActivity.EXTRA_USERNAME, username);
+        startActivity(i);
     }
 
     @Override
@@ -298,6 +386,13 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         if (hostId != null) {
                             loadHostInfo(hostId, hostProfileImage, hostName);
                         }
+                        // when user taps host avatar/name, open ProfileActivity
+                        hostProfileImage.setOnClickListener(v ->
+                            openProfile(hostName.getText().toString())
+                        );
+                        hostName.setOnClickListener(v ->
+                            openProfile(hostName.getText().toString())
+                        );
 
                         // Load attendees information
                         if (attendeeIds != null && !attendeeIds.isEmpty()) {
