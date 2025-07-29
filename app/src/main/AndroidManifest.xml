@@ -16,12 +16,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Group2project">
         <activity
-            android:name=".ProfileActivity"
+            android:name=".CreateEventActivity"
             android:exported="false" />
-        <!-- Google Maps API Key -->
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="false" /> <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCO06xw8904_10JyPbhOcnIWyg6admdIEI" />
+
         <activity
             android:name=".eventDetail"
             android:exported="false" />
@@ -40,7 +43,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
 
 </manifest>
