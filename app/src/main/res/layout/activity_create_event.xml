@@ -23,21 +23,24 @@
             android:padding="16dp">
 
             <!-- Image Choose -->
-            <ImageView
-                android:id="@+id/eventImage"
-                android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_launcher_background"
-                android:background="@drawable/bg_white_rounded_border"
-                android:layout_marginBottom="16dp" />
-
             <Button
                 android:id="@+id/btnSelectImage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Select Image from Gallery"
-                android:layout_marginBottom="20dp" />
+                android:text="Select Images from Gallery"
+                android:layout_marginBottom="16dp" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:id="@+id/imagePreviewLayout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"/>
+            </HorizontalScrollView>
 
             <!-- Event Name -->
             <EditText
