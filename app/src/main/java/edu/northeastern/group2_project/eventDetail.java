@@ -67,7 +67,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         setContentView(R.layout.event_detail);
 
         // initialize db
-        db = FirebaseFirestore.getInstance(); 
+        db = FirebaseFirestore.getInstance();
 
         // todo: pass real event_id via event list
         eventId = getIntent().getStringExtra("EVENT_ID");
@@ -189,28 +189,39 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
         // make favorite button interactive
         favoriteButton.setOnClickListener(v -> {
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user == null) {
+                Toast.makeText(this, "Please sign in to save favorites", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String userId = user.getUid();
+            DocumentReference userRef = FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(userId);
+
             if (!isFavorited[0]) {
                 favoriteButton.setImageResource(R.drawable.ic_favorite_filled);
-                Toast.makeText(this, "Event saved", Toast.LENGTH_SHORT).show();
 
-                // save to firestore
-                Map<String, Object> data = new HashMap<>();
-                data.put("savedAt", new Timestamp(new Date()));
-
-                db.collection("users").document(userId)
-                        .collection("favorites")
-                        .document(eventId)
-                        .set(data);
-
+                userRef.update("favoritedEventIds", FieldValue.arrayUnion(eventId))
+                        .addOnSuccessListener(unused -> {
+                            Toast.makeText(this, "Event saved to favorites", Toast.LENGTH_SHORT).show();
+                        })
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "Failed to save favorite", Toast.LENGTH_SHORT).show();
+                            e.printStackTrace();
+                        });
             } else {
-                favoriteButton.setImageResource(R.drawable.ic_favorite_border); // outline
-                Toast.makeText(this, "Event removed", Toast.LENGTH_SHORT).show();
+                favoriteButton.setImageResource(R.drawable.ic_favorite_border);
 
-                // remove from firestore
-                db.collection("users").document(userId)
-                        .collection("favorites")
-                        .document(eventId)
-                        .delete();
+                userRef.update("favoritedEventIds", FieldValue.arrayRemove(eventId))
+                        .addOnSuccessListener(unused -> {
+                            Toast.makeText(this, "Event removed from favorites", Toast.LENGTH_SHORT).show();
+                        })
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "Failed to remove favorite", Toast.LENGTH_SHORT).show();
+                            e.printStackTrace();
+                        });
             }
             isFavorited[0] = !isFavorited[0];
         });
