@@ -390,15 +390,16 @@ public class CreateEventActivity extends AppCompatActivity {
             return false;
         }
 
-        String price = getTextOrEmpty(R.id.eventPrice);
-        if (!price.isEmpty()) {
+        String price = getTextOrEmpty(R.id.eventPrice).trim();
+        if (price.isEmpty()) {
+            showToast("Please enter a price");
+            return false;}
             try {
                 Double.parseDouble(price);
             } catch (NumberFormatException e) {
                 showToast("Price must be a number.");
                 return false;
             }
-        }
 
         return true;
     }
