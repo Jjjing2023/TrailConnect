@@ -25,6 +25,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
@@ -265,6 +267,18 @@ public class CreateEventActivity extends AppCompatActivity {
         String location = getTextOrEmpty(R.id.eventLocation);
         String address = getTextOrEmpty(R.id.eventAddress);
         String price = getTextOrEmpty(R.id.eventPrice);
+
+        // saving host info for an event
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        String hostId = (currentUser != null) ? currentUser.getUid() : "unknown";
+        String hostName = (currentUser != null) ? currentUser.getDisplayName() : "anonymous";
+        String hostEmail = (currentUser != null) ? currentUser.getEmail() : "anonymous";
+
+        Map<String, Object> hostInfo = new HashMap<>();
+        hostInfo.put("uid", hostId);
+        hostInfo.put("email", hostEmail);
+        hostInfo.put("name", hostName);
+
 
         Map<String, Object> event = new HashMap<>();
         event.put("name", eventName);
