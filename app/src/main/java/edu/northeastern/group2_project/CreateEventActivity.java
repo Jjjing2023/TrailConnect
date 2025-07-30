@@ -38,11 +38,14 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import android.net.Uri;
@@ -223,7 +226,8 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void uploadImagesAndSaveEvent() {
-        // image validation
+        // validation
+        if (!validateInputs()) return;
 
         List<String> imageUrls = new ArrayList<>();
         List<Uri> imagesToUpload = new ArrayList<>(imageUris);
@@ -301,6 +305,7 @@ public class CreateEventActivity extends AppCompatActivity {
         String address = getTextOrEmpty(R.id.eventAddress);
         String price = getTextOrEmpty(R.id.eventPrice);
 
+
         // saving host info for an event
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         String hostId = (currentUser != null) ? currentUser.getUid() : "unknown";
@@ -345,6 +350,7 @@ public class CreateEventActivity extends AppCompatActivity {
             showToast("Please enter an event name.");
             return false;
         }
+
         if (getTextOrEmpty(R.id.startDateTime).isEmpty()) {
             showToast("Please enter a start time.");
             return false;
@@ -353,6 +359,24 @@ public class CreateEventActivity extends AppCompatActivity {
             showToast("Please enter an end time.");
             return false;
         }
+
+        // Validate time format and chronology
+        String startTime = getTextOrEmpty(R.id.startDateTime);
+        String endTime = getTextOrEmpty(R.id.endDateTime);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US);
+        try {
+            Date start = sdf.parse(startTime);
+            Date end = sdf.parse(endTime);
+            if (start != null && end != null && start.after(end)) {
+                showToast("Start time must be before end time.");
+                return false;
+            }
+        } catch (ParseException e) {
+            showToast("Invalid date format. Please use yyyy-MM-dd HH:mm.");
+            return false;
+        }
+
         if (getTextOrEmpty(R.id.eventDescription).isEmpty()) {
             showToast("Please enter a description.");
             return false;
@@ -384,6 +408,21 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
 
+    // start and end time validation
+    private boolean isValidDateTimeRange(String start, String end) {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US);
+        sdf.setLenient(false);
+
+        try {
+            java.util.Date startDate = sdf.parse(start);
+            java.util.Date endDate = sdf.parse(end);
+            if (startDate == null || endDate == null) return false;
+
+            return startDate.before(endDate);
+        } catch (java.text.ParseException e) {
+            return false;
+        }
+    }
 
 
     // Upload image to ImgBB to get url
