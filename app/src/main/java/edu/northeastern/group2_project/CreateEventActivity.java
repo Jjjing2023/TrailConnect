@@ -4,6 +4,9 @@ package edu.northeastern.group2_project;
 
 
 
+import android.annotation.SuppressLint;
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -35,7 +38,9 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +99,31 @@ public class CreateEventActivity extends AppCompatActivity {
         Button btnCreate = findViewById(R.id.btnCreateEvent);
         btnCreate.setOnClickListener(v -> uploadImagesAndSaveEvent());
 
+        EditText startDateTimeField = findViewById(R.id.startDateTime);
+        EditText endDateTimeField = findViewById(R.id.endDateTime);
+
+        startDateTimeField.setOnClickListener(v -> showDateTimePicker(startDateTimeField));
+        endDateTimeField.setOnClickListener(v -> showDateTimePicker(endDateTimeField));
+
     }
+
+    private void showDateTimePicker(EditText targetField) {
+        final Calendar calendar = Calendar.getInstance();
+
+        DatePickerDialog datePicker = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            TimePickerDialog timePicker = new TimePickerDialog(this, (timeView, hourOfDay, minute) -> {
+                calendar.set(year, month, dayOfMonth, hourOfDay, minute);
+                @SuppressLint("SimpleDateFormat")
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+                targetField.setText(sdf.format(calendar.getTime()));
+            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true);
+            timePicker.show();
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+
+        datePicker.show();
+    }
+
+
 
     private void openImagePicker() {
         Intent intent = new Intent();
@@ -194,6 +223,8 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void uploadImagesAndSaveEvent() {
+        // image validation
+
         List<String> imageUrls = new ArrayList<>();
         List<Uri> imagesToUpload = new ArrayList<>(imageUris);
 
@@ -260,6 +291,8 @@ public class CreateEventActivity extends AppCompatActivity {
         }
     }
     private void saveEventToFirestore(List<String> imageUrls) {
+        if (!validateInputs()) return;
+
         String eventName = getTextOrEmpty(R.id.eventName);
         String startTime = getTextOrEmpty(R.id.startDateTime);
         String endTime = getTextOrEmpty(R.id.endDateTime);
@@ -305,6 +338,53 @@ public class CreateEventActivity extends AppCompatActivity {
         EditText field = findViewById(editTextId);
         return field != null ? field.getText().toString().trim() : "";
     }
+
+    // input validation
+    private boolean validateInputs() {
+        if (getTextOrEmpty(R.id.eventName).isEmpty()) {
+            showToast("Please enter an event name.");
+            return false;
+        }
+        if (getTextOrEmpty(R.id.startDateTime).isEmpty()) {
+            showToast("Please enter a start time.");
+            return false;
+        }
+        if (getTextOrEmpty(R.id.endDateTime).isEmpty()) {
+            showToast("Please enter an end time.");
+            return false;
+        }
+        if (getTextOrEmpty(R.id.eventDescription).isEmpty()) {
+            showToast("Please enter a description.");
+            return false;
+        }
+        if (getTextOrEmpty(R.id.eventLocation).isEmpty()) {
+            showToast("Please enter a location.");
+            return false;
+        }
+        if (getTextOrEmpty(R.id.eventAddress).isEmpty()) {
+            showToast("Please enter an address.");
+            return false;
+        }
+
+        String price = getTextOrEmpty(R.id.eventPrice);
+        if (!price.isEmpty()) {
+            try {
+                Double.parseDouble(price);
+            } catch (NumberFormatException e) {
+                showToast("Price must be a number.");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void showToast(String msg){
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+
+
+
 
     // Upload image to ImgBB to get url
     private void uploadImageToImgBB(Uri imageUri, OnUrlReadyCallback callback) {

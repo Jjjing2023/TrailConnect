@@ -71,21 +71,22 @@
                 android:clickable="true" />
 
             <!-- End Time -->
+
+            <!-- Description -->
             <EditText
                 android:id="@+id/endDateTime"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="End Time"
-                android:background="@drawable/bg_white_rounded_border"
-                android:padding="12dp"
-                android:textColor="@android:color/black"
-                android:textSize="16sp"
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_white_rounded_border"
+                android:clickable="true"
                 android:focusable="false"
-                android:clickable="true" />
+                android:hint="End Time"
+                android:padding="12dp"
+                android:textColor="@android:color/black"
+                android:textSize="16sp" />
 
-            <!-- Description -->
             <EditText
                 android:id="@+id/eventDescription"
                 android:layout_width="match_parent"
