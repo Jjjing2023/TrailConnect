@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,24 +47,24 @@ public class HomeActivity extends AppCompatActivity {
         mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
 
         TextView welcomeText = findViewById(R.id.welcomeText);
-        Button logoutButton = findViewById(R.id.logoutButton);
+
 
         // Try to get name from local storage first for faster UI loading
         UserLocalStorage localStorage = new UserLocalStorage(this);
         String userName = localStorage.getUserName();
 
         if (!userName.isEmpty()) {
-            welcomeText.setText("Welcome to TrailConnect, " + userName + "!");
+            welcomeText.setText("Welcome " + userName + "!");
         } else {
             // Fall back to Firebase user
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getDisplayName() != null && !user.getDisplayName().isEmpty()) {
-                welcomeText.setText("Welcome to TrailConnect, " + user.getDisplayName() + "!");
+                welcomeText.setText("Welcome " + user.getDisplayName() + "!");
                 localStorage.storeUserName(user.getDisplayName());
             } else if (user != null && user.getEmail() != null) {
                 // Use email prefix if no display name
                 String emailName = user.getEmail().split("@")[0];
-                welcomeText.setText("Welcome to TrailConnect, " + emailName + "!");
+                welcomeText.setText("Welcome " + emailName + "!");
                 localStorage.storeUserName(emailName);
             } else {
                 welcomeText.setText("Welcome to TrailConnect!");
@@ -73,22 +74,21 @@ public class HomeActivity extends AppCompatActivity {
         // Update last login timestamp
         localStorage.updateLastLogin();
 
-        // Set up logout button
-        logoutButton.setOnClickListener(view -> confirmLogout());
 
-        // place holder button for event detail page
-        Button eventDetailPlaceHolder = findViewById(R.id.eventDetails);
-        eventDetailPlaceHolder.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // todo: pass real data from event list
-                String eventId = "test_event_001"; // temporary ID for testing
-                Intent intent = new Intent(HomeActivity.this, eventDetail.class);
-                intent.putExtra("EVENT_ID", eventId);
-                startActivity(intent);
 
-            }
-        });
+//        // place holder button for event detail page
+//        Button eventDetailPlaceHolder = findViewById(R.id.eventDetails);
+//        eventDetailPlaceHolder.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                // todo: pass real data from event list
+//                String eventId = "test_event_001"; // temporary ID for testing
+//                Intent intent = new Intent(HomeActivity.this, eventDetail.class);
+//                intent.putExtra("EVENT_ID", eventId);
+//                startActivity(intent);
+//
+//            }
+//        });
 
         // button to post a new event
         ImageButton postButton = findViewById(R.id.btnPost);
@@ -171,16 +171,29 @@ public class HomeActivity extends AppCompatActivity {
             });
             eventsRecyclerView.setAdapter(adapter);
         });
+        ImageView btnHome = findViewById(R.id.btnHome);
+        ImageView btnMe = findViewById(R.id.btnMe);
+
+        btnHome.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Launch HomeActivity
+                Intent intent = new Intent(HomeActivity.this, HomeActivity.class);
+                startActivity(intent);
+            }
+        });
+
+        btnMe.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Launch ProfileActivity
+                Intent intent = new Intent(HomeActivity.this, ProfileActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 
-    private void confirmLogout() {
-        new AlertDialog.Builder(this)
-                .setTitle("Logout")
-                .setMessage("Are you sure you want to logout from TrailConnect?")
-                .setPositiveButton("Yes", (dialog, which) -> logout())
-                .setNegativeButton("No", null)
-                .show();
-    }
+
 
     private void logout() {
         // Sign out from Google Sign-In
