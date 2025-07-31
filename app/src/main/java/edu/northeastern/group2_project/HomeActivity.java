@@ -9,7 +9,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
+import com.google.firebase.firestore.Query;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -102,6 +102,7 @@ public class HomeActivity extends AppCompatActivity {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
         db.collection("events")
+                .orderBy("postTime", Query.Direction.DESCENDING)
                 .addSnapshotListener((querySnapshot, error) -> {
                     if (error != null) {
                         Log.e("FirestoreDebug", "Listen failed.", error);

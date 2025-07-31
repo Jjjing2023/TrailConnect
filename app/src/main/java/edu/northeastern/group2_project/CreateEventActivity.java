@@ -32,6 +32,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
@@ -229,7 +230,7 @@ public class CreateEventActivity extends AppCompatActivity {
 
     private void uploadImagesAndSaveEvent() {
         // validation
-//        if (!validateInputs()) return;
+        if (!validateInputs()) return;
 
         List<String> imageUrls = new ArrayList<>();
         List<Uri> imagesToUpload = new ArrayList<>(imageUris);
@@ -356,6 +357,7 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("imageUrls", imageUrls);
         event.put("latitude", latitude);
         event.put("longitude", longitude);
+        event.put("postTime", FieldValue.serverTimestamp());
 
         firestore.collection("events")
                 .add(event)
