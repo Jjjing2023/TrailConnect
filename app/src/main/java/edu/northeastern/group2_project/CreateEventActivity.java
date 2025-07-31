@@ -8,6 +8,8 @@ import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.location.Address;
+import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -227,7 +229,7 @@ public class CreateEventActivity extends AppCompatActivity {
 
     private void uploadImagesAndSaveEvent() {
         // validation
-        if (!validateInputs()) return;
+//        if (!validateInputs()) return;
 
         List<String> imageUrls = new ArrayList<>();
         List<Uri> imagesToUpload = new ArrayList<>(imageUris);
@@ -305,6 +307,31 @@ public class CreateEventActivity extends AppCompatActivity {
         String address = getTextOrEmpty(R.id.eventAddress);
         String price = getTextOrEmpty(R.id.eventPrice);
 
+        double priceValue;
+        if ("FREE".equalsIgnoreCase(price)) {
+            priceValue = 0;
+        } else {
+            try {
+                priceValue = Double.parseDouble(price);
+            } catch (NumberFormatException e) {
+                priceValue = 0; // fallback if input is not a valid number
+            }
+        }
+        double latitude = 0.0;
+        double longitude = 0.0;
+
+        try {
+            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+            List<Address> addresses = geocoder.getFromLocationName(address, 1);
+            if (addresses != null && !addresses.isEmpty()) {
+                latitude = addresses.get(0).getLatitude();
+                longitude = addresses.get(0).getLongitude();
+            } else {
+                Log.e("CreateEventActivity", "Geocoder returned no results for address: " + address);
+            }
+        } catch (Exception e) {
+            Log.e("CreateEventActivity", "Geocoding failed: " + e.getMessage());
+        }
 
         // saving host info for an event
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
@@ -325,8 +352,10 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("description", description);
         event.put("location", location);
         event.put("address", address);
-        event.put("price", price);
+        event.put("price", priceValue);
         event.put("imageUrls", imageUrls);
+        event.put("latitude", latitude);
+        event.put("longitude", longitude);
 
         firestore.collection("events")
                 .add(event)
@@ -421,6 +450,7 @@ public class CreateEventActivity extends AppCompatActivity {
 
             return startDate.before(endDate);
         } catch (java.text.ParseException e) {
+
             return false;
         }
     }

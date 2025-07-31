@@ -71,6 +71,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
         // todo: pass real event_id via event list
         eventId = getIntent().getStringExtra("EVENT_ID");
+
         if (eventId == null) {
             Toast.makeText(this, "No event ID provided", Toast.LENGTH_SHORT).show();
             finish();
@@ -86,7 +87,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         TextView textEventDateTime = findViewById(R.id.textEventDateTime);
         TextView textEventAbout = findViewById(R.id.textEventAbout);
         TextView textEventLocation = findViewById(R.id.textEventLocation);
-        
+
         // Initialize Host & Attendees UI elements
         ImageView hostProfileImage = findViewById(R.id.hostProfileImage);
         TextView hostName = findViewById(R.id.hostName);
@@ -318,7 +319,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         Log.d("EventDetail", "Google Maps loaded successfully");
         mMap = googleMap;
-        
+
         // Map will be updated when event data is loaded from Firebase
         // For now, set a default location
         LatLng defaultLocation = new LatLng(37.8919, -122.5775);
@@ -338,7 +339,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         TextView textEventLocation = findViewById(R.id.textEventLocation);
                         TextView textEventAddress = findViewById(R.id.textEventAddress);
                         ViewPager2 viewPager = findViewById(R.id.viewPagerImages);
-                        
+
                         // Get Host & Attendees UI elements
                         ImageView hostProfileImage = findViewById(R.id.hostProfileImage);
                         TextView hostName = findViewById(R.id.hostName);
@@ -354,7 +355,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         List<String> imageUrls = (List<String>) document.get("imageUrls");
                         Double latitude = document.getDouble("latitude");
                         Double longitude = document.getDouble("longitude");
-                        
+
                         // Get host and attendees data
                         String hostId = document.getString("host");
                         List<String> attendeeIds = (List<String>) document.get("attendees");
@@ -370,7 +371,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         if (imageUrls != null && !imageUrls.isEmpty()) {
                             ImageCarouselAdapter adapter = new ImageCarouselAdapter(this, imageUrls);
                             viewPager.setAdapter(adapter);
-                            
+
                             // Update page indicator
                             TabLayout tabLayout = findViewById(R.id.tabLayoutIndicator);
                             new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
@@ -431,11 +432,11 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                     if (document.exists()) {
                         String name = document.getString("name");
                         String profileImageUrl = document.getString("profileImageUrl");
-                        
+
                         if (name != null) {
                             hostName.setText(name);
                         }
-                        
+
                         // Load profile image
                         if (profileImageUrl != null && !profileImageUrl.isEmpty()) {
                             Glide.with(this)
