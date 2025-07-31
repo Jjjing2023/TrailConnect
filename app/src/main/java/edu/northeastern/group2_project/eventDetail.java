@@ -348,8 +348,17 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
                         // Set event data
                         String title = document.getString("title");
-                        String dateTime = document.getString("dateTime");
-                        String about = document.getString("about");
+                        String startTime = document.getString("startTime");
+                        String endTime = document.getString("endTime");
+                        String dateTime = "";
+                        if (startTime != null && endTime != null) {
+                            dateTime = startTime + " - " + endTime;
+                        } else if (startTime != null) {
+                            dateTime = startTime;
+                        } else if (endTime != null) {
+                            dateTime = endTime;
+                        }
+                        String about = document.getString("description");
                         String location = document.getString("location");
                         String address = document.getString("address");
                         List<String> imageUrls = (List<String>) document.get("imageUrls");
@@ -362,8 +371,8 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
                         // Update UI
                         if (title != null) textEventTitle.setText(title);
-                        if (dateTime != null) textEventDateTime.setText(dateTime);
                         if (about != null) textEventAbout.setText(about);
+                        textEventDateTime.setText(dateTime);
                         if (location != null) textEventLocation.setText(location);
                         if (address != null) textEventAddress.setText(address);
 
