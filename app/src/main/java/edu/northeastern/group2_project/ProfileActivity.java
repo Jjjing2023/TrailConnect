@@ -2,9 +2,11 @@ package edu.northeastern.group2_project;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class ProfileActivity extends AppCompatActivity {
@@ -37,6 +39,9 @@ public class ProfileActivity extends AppCompatActivity {
             getSupportActionBar().setTitle(username);
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
+        // Set up logout button
+//        Button logoutButton = findViewById(R.id.logoutButton);
+//        logoutButton.setOnClickListener(view -> confirmLogout());
     }
 
     @Override
@@ -44,5 +49,13 @@ public class ProfileActivity extends AppCompatActivity {
         finish();
         return true;
     }
+//    private void confirmLogout() {
+//        new AlertDialog.Builder(this)
+//                .setTitle("Logout")
+//                .setMessage("Are you sure you want to logout from TrailConnect?")
+//                .setPositiveButton("Yes", (dialog, which) -> logout())
+//                .setNegativeButton("No", null)
+//                .show();
+//    }
 }
 
