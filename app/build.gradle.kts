@@ -12,6 +12,9 @@ val localProperties = Properties().apply {
     }
 }
 val imgbbKey = localProperties.getProperty("IMGBB_API_KEY") ?: ""
+
+val geoapifyKey = localProperties.getProperty("GEOAPIFY_KEY") ?: ""
+
 android {
     namespace = "edu.northeastern.group2_project"
     compileSdk = 36
@@ -29,6 +32,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "IMGBB_API_KEY", "\"$imgbbKey\"")
+        buildConfigField("String", "GEOAPIFY_KEY", "\"$geoapifyKey\"")
     }
 
     buildTypes {
@@ -71,5 +75,10 @@ dependencies {
     implementation("com.google.android.gms:play-services-base:18.4.0")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    implementation ("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation ("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation ("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
 }

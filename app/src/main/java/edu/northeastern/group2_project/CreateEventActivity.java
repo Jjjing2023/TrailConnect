@@ -12,15 +12,19 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListPopupWindow;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -82,6 +86,22 @@ public class CreateEventActivity extends AppCompatActivity {
     private StorageReference storageRef;
     private FirebaseFirestore firestore;
 
+    // for address suggestion
+    private GeoapifyService geoApi;
+    private ListPopupWindow addrPopup;
+    private ArrayAdapter<String> addrAdapter;
+    private final Handler addrHandler = new Handler(Looper.getMainLooper());
+    private Runnable addrPending;
+    private static final long ADDR_DEBOUNCE = 350;
+
+    // Keep selected coordinates from autocomplete
+    private Double selectedLat = null;
+    private Double selectedLon = null;
+
+    // Keep the raw results so we can map list item -> feature
+    private java.util.List<FeatureCollection.Feature> lastAddrResults = new java.util.ArrayList<>();
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -111,6 +131,58 @@ public class CreateEventActivity extends AppCompatActivity {
         startDateTimeField.setOnClickListener(v -> showDateTimePicker(startDateTimeField));
         endDateTimeField.setOnClickListener(v -> showDateTimePicker(endDateTimeField));
 
+        geoApi = GeoapifyClient.get();
+        // Address field + popup
+        EditText addressEt = findViewById(R.id.eventAddress);
+        addrPopup = new ListPopupWindow(this);
+        addrAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new ArrayList<>());
+        addrPopup.setAdapter(addrAdapter);
+        addrPopup.setAnchorView(addressEt);
+        addrPopup.setOnItemClickListener((parent, view, position, id) -> {
+            FeatureCollection.Feature f = lastAddrResults.get(position);
+            String label = f.properties.formatted != null ? f.properties.formatted
+                    : (f.properties.name != null ? f.properties.name : addressEt.getText().toString());
+            addressEt.setText(label);
+            // keep coordinates
+            selectedLat = f.properties.lat != null ? f.properties.lat : f.geometry.coordinates.get(1);
+            selectedLon = f.properties.lon != null ? f.properties.lon : f.geometry.coordinates.get(0);
+            addrPopup.dismiss();
+        });
+
+        addressEt.addTextChangedListener(new SimpleTextWatcher() {
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String q = s.toString().trim();
+                selectedLat = null; selectedLon = null; // reset if user edits again
+                if (q.length() < 2) { addrPopup.dismiss(); return; }
+
+                if (addrPending != null) addrHandler.removeCallbacks(addrPending);
+                addrPending = () -> {
+                    geoApi.autocomplete(q, 8, BuildConfig.GEOAPIFY_KEY)
+                            .enqueue(new retrofit2.Callback<FeatureCollection>() {
+                                @Override public void onResponse(retrofit2.Call<FeatureCollection> c,
+                                                                 retrofit2.Response<FeatureCollection> r) {
+                                    if (!r.isSuccessful() || r.body()==null) { addrPopup.dismiss(); return; }
+                                    lastAddrResults = r.body().features != null ? r.body().features : new ArrayList<>();
+                                    ArrayList<String> labels = new ArrayList<>();
+                                    for (FeatureCollection.Feature f : lastAddrResults) {
+                                        String label = f.properties.formatted != null ? f.properties.formatted
+                                                : (f.properties.name != null ? f.properties.name : "");
+                                        if (!label.isEmpty()) labels.add(label);
+                                    }
+                                    if (labels.isEmpty()) { addrPopup.dismiss(); return; }
+                                    addrAdapter.clear();
+                                    addrAdapter.addAll(labels);
+                                    addrAdapter.notifyDataSetChanged();
+                                    addrPopup.show();
+                                }
+                                @Override public void onFailure(retrofit2.Call<FeatureCollection> c, Throwable t) {
+                                    addrPopup.dismiss();
+                                }
+                            });
+                };
+                addrHandler.postDelayed(addrPending, ADDR_DEBOUNCE);
+            }
+        });
     }
 
     private void showDateTimePicker(EditText targetField) {
@@ -318,21 +390,30 @@ public class CreateEventActivity extends AppCompatActivity {
                 priceValue = 0; // fallback if input is not a valid number
             }
         }
+
         double latitude = 0.0;
         double longitude = 0.0;
 
-        try {
-            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-            List<Address> addresses = geocoder.getFromLocationName(address, 1);
-            if (addresses != null && !addresses.isEmpty()) {
-                latitude = addresses.get(0).getLatitude();
-                longitude = addresses.get(0).getLongitude();
-            } else {
-                Log.e("CreateEventActivity", "Geocoder returned no results for address: " + address);
+        // lat & lon from Geoapify autocomplete selection
+        if (selectedLat != null && selectedLon != null) {
+            latitude = selectedLat;
+            longitude = selectedLon;
+        } else {
+            // Fallback to Android Geocoder if the user typed a custom address
+            try {
+                Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+                List<Address> addresses = geocoder.getFromLocationName(address, 1);
+                if (addresses != null && !addresses.isEmpty()) {
+                    latitude = addresses.get(0).getLatitude();
+                    longitude = addresses.get(0).getLongitude();
+                } else {
+                    Log.e("CreateEventActivity", "Geocoder returned no results for address: " + address);
+                }
+            } catch (Exception e) {
+                Log.e("CreateEventActivity", "Geocoding failed: " + e.getMessage());
             }
-        } catch (Exception e) {
-            Log.e("CreateEventActivity", "Geocoding failed: " + e.getMessage());
         }
+
 
         // saving host info for an event
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
