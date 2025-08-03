@@ -64,23 +64,8 @@ public class HomeActivity extends AppCompatActivity {
         UserLocalStorage localStorage = new UserLocalStorage(this);
         String userName = localStorage.getUserName();
 
-        if (!userName.isEmpty()) {
-            welcomeText.setText("Welcome " + userName + "!");
-        } else {
-            // Fall back to Firebase user
-            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user != null && user.getDisplayName() != null && !user.getDisplayName().isEmpty()) {
-                welcomeText.setText("Welcome " + user.getDisplayName() + "!");
-                localStorage.storeUserName(user.getDisplayName());
-            } else if (user != null && user.getEmail() != null) {
-                // Use email prefix if no display name
-                String emailName = user.getEmail().split("@")[0];
-                welcomeText.setText("Welcome " + emailName + "!");
-                localStorage.storeUserName(emailName);
-            } else {
-                welcomeText.setText("Welcome to TrailConnect!");
-            }
-        }
+        // Set the title to "Recent Events" instead of welcome message
+        welcomeText.setText("Recent Events");
 
         // Update last login timestamp
         localStorage.updateLastLogin();

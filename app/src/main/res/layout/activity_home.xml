@@ -77,13 +77,14 @@
         android:id="@+id/welcomeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Welcome!"
+        android:text="Recent Events"
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#333333"
         app:layout_constraintTop_toBottomOf="@id/searchBarCard"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="20dp"/>
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="16dp"/>
 
     <!-- SwipeRefreshLayout for pull-to-refresh functionality -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
