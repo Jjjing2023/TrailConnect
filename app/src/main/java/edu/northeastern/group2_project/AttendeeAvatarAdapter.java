@@ -19,9 +19,14 @@ public class AttendeeAvatarAdapter extends RecyclerView.Adapter<AttendeeAvatarAd
     private final Context context;
     private final int maxAvatars;
     private final OnAvatarClickListener listener;
+    private final OnAttendeeClickListener attendeeListener;
 
     public interface OnAvatarClickListener {
         void onAvatarClick(); // Trigger popup when any avatar is clicked
+    }
+
+    public interface OnAttendeeClickListener {
+        void onAttendeeClick(Attendee attendee);
     }
 
     public AttendeeAvatarAdapter(Context context, List<Attendee> attendees, int maxAvatars, OnAvatarClickListener listener) {
@@ -29,6 +34,15 @@ public class AttendeeAvatarAdapter extends RecyclerView.Adapter<AttendeeAvatarAd
         this.attendees = attendees;
         this.maxAvatars = maxAvatars;
         this.listener = listener;
+        this.attendeeListener = null;
+    }
+
+    public AttendeeAvatarAdapter(Context context, List<Attendee> attendees, int maxAvatars, OnAvatarClickListener listener, OnAttendeeClickListener attendeeListener) {
+        this.context = context;
+        this.attendees = attendees;
+        this.maxAvatars = maxAvatars;
+        this.listener = listener;
+        this.attendeeListener = attendeeListener;
     }
 
     @NonNull
@@ -47,19 +61,30 @@ public class AttendeeAvatarAdapter extends RecyclerView.Adapter<AttendeeAvatarAd
             if (attendee.getProfileImageUrl() != null && !attendee.getProfileImageUrl().isEmpty()) {
                 Glide.with(context)
                         .load(attendee.getProfileImageUrl())
-                        .placeholder(R.drawable.ic_launcher_foreground)
+                        .placeholder(R.drawable.ic_default_avatar)
                         .into(holder.avatarImage);
             } else {
-                holder.avatarImage.setImageResource(R.drawable.ic_launcher_foreground);
+                holder.avatarImage.setImageResource(R.drawable.ic_default_avatar);
             }
+            
+            // Set click listener for individual attendee avatar
+            holder.itemView.setOnClickListener(v -> {
+                if (attendeeListener != null) {
+                    attendeeListener.onAttendeeClick(attendee);
+                } else if (listener != null) {
+                    listener.onAvatarClick();
+                }
+            });
         } else if (position == maxAvatars && attendees.size() > maxAvatars) {
             holder.avatarImage.setVisibility(View.GONE);
             holder.moreText.setVisibility(View.VISIBLE);
             holder.moreText.setText("+" + (attendees.size() - maxAvatars));
+            
+            // Set click listener for "more" button
+            holder.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onAvatarClick();
+            });
         }
-        holder.itemView.setOnClickListener(v -> {
-            if (listener != null) listener.onAvatarClick();
-        });
     }
 
     @Override

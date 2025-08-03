@@ -59,6 +59,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
     private String userId;
     private String eventId;
     private GoogleMap mMap;
+    private boolean disableProfileNavigation;
 
 
     @Override
@@ -71,6 +72,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
         // todo: pass real event_id via event list
         eventId = getIntent().getStringExtra("EVENT_ID");
+        disableProfileNavigation = getIntent().getBooleanExtra("DISABLE_PROFILE_NAVIGATION", false);
 
         if (eventId == null) {
             Toast.makeText(this, "No event ID provided", Toast.LENGTH_SHORT).show();
@@ -96,6 +98,15 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         RecyclerView attendeesAvatarRecyclerView = findViewById(R.id.attendeesAvatarRecyclerView);
         attendeesAvatarRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
+        // Load event data from Firebase with error handling
+        try {
+            loadEventDataFromFirebase();
+        } catch (Exception e) {
+            Log.e("eventDetail", "Error loading event data in onCreate: " + e.getMessage(), e);
+            Toast.makeText(this, "Error loading event details.", Toast.LENGTH_LONG).show();
+            finish(); // Close activity if data loading fails critically
+        }
+
         // Contact Host button
         ImageButton contactButton = findViewById(R.id.btn_contact);
         contactButton.setOnClickListener(v -> {
@@ -116,6 +127,9 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
         // Load event data from Firebase
         loadEventDataFromFirebase();
+        
+        // Set up real-time listener for attendees
+        setupAttendeesListener();
 
         boolean[] isFavorited = {false};
 
@@ -290,14 +304,25 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                                 .setMessage("Are you sure you want to join this event?")
                                 .setPositiveButton("Yes", (dialog, which) -> {
                                     // 1. Add userId to events/{eventId}/attendees
-                                    eventRef.update("attendees", FieldValue.arrayUnion(userId));
-
-                                    // Add eventId to users/{userId}/joinedEvents
-                                    userRef.update("joinedEvents", FieldValue.arrayUnion(eventId));
-
-                                    joinButton.setText("Joined");
-                                    joinButton.setEnabled(false);
-                                    Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
+                                    eventRef.update("attendees", FieldValue.arrayUnion(userId))
+                                            .addOnSuccessListener(aVoid -> {
+                                                // Add eventId to users/{userId}/joinedEvents
+                                                userRef.update("joinedEvents", FieldValue.arrayUnion(eventId))
+                                                        .addOnSuccessListener(aVoid2 -> {
+                                                            joinButton.setText("Joined");
+                                                            joinButton.setEnabled(false);
+                                                            Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
+                                                            
+                                                            // Refresh attendees list after joining
+                                                            refreshAttendeesList();
+                                                        })
+                                                        .addOnFailureListener(e -> {
+                                                            Snackbar.make(findViewById(android.R.id.content), "Failed to update user data", Snackbar.LENGTH_SHORT).show();
+                                                        });
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Snackbar.make(findViewById(android.R.id.content), "Failed to join event", Snackbar.LENGTH_SHORT).show();
+                                            });
                                 })
                                 .setNegativeButton("Cancel", null)
                                 .show();
@@ -309,10 +334,30 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         });
     }
 
-    private void openProfile(String username) {
+    private void openProfile(String username, String userId) {
         Intent i = new Intent(this, ProfileActivity.class);
         i.putExtra(ProfileActivity.EXTRA_USERNAME, username);
+        i.putExtra(ProfileActivity.EXTRA_USER_ID, userId);
         startActivity(i);
+    }
+
+    private void openAttendeeProfile(Attendee attendee) {
+        // Check if profile navigation is disabled
+        if (disableProfileNavigation) {
+            Toast.makeText(this, "Profile navigation disabled", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Check if attendee has valid user ID
+        if (attendee.getUserId() == null || attendee.getUserId().isEmpty()) {
+            Toast.makeText(this, "Attendee information not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Intent intent = new Intent(this, ProfileActivity.class);
+        intent.putExtra(ProfileActivity.EXTRA_USERNAME, attendee.getName());
+        intent.putExtra(ProfileActivity.EXTRA_USER_ID, attendee.getUserId());
+        startActivity(intent);
     }
 
     @Override
@@ -369,14 +414,14 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         String hostId = document.getString("host");
                         List<String> attendeeIds = (List<String>) document.get("attendees");
 
-                        // Update UI
-                        if (title != null) textEventTitle.setText(title);
-                        if (about != null) textEventAbout.setText(about);
+                        // Update UI with null checks
+                        textEventTitle.setText(title != null ? title : "No Title");
+                        textEventAbout.setText(about != null ? about : "No Description");
                         textEventDateTime.setText(dateTime);
-                        if (location != null) textEventLocation.setText(location);
-                        if (address != null) textEventAddress.setText(address);
+                        textEventLocation.setText(location != null ? location : "No Location");
+                        textEventAddress.setText(address != null ? address : "No Address");
 
-                        // Update image carousel
+                        // Update image carousel with null check
                         if (imageUrls != null && !imageUrls.isEmpty()) {
                             ImageCarouselAdapter adapter = new ImageCarouselAdapter(this, imageUrls);
                             viewPager.setAdapter(adapter);
@@ -386,9 +431,15 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                             new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
                                 Log.d("TabLayoutMediator", "Binding tab for position " + position);
                             }).attach();
+                        } else {
+                            // Set default image if no images available
+                            List<String> defaultImage = new ArrayList<>();
+                            defaultImage.add("android.resource://" + getPackageName() + "/" + R.drawable.ic_launcher_foreground);
+                            ImageCarouselAdapter adapter = new ImageCarouselAdapter(this, defaultImage);
+                            viewPager.setAdapter(adapter);
                         }
 
-                        // Update map location
+                        // Update map location with null checks
                         if (latitude != null && longitude != null && mMap != null) {
                             LatLng eventLocation = new LatLng(latitude, longitude);
                             Log.d("EventDetail", "Updating map with event location: " + latitude + ", " + longitude);
@@ -400,20 +451,41 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                             mMap.moveCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(eventLocation, 12));
                             Log.d("EventDetail", "Map updated with event marker and camera moved");
                         } else {
-                            Log.d("EventDetail", "Map not updated - missing coordinates or map not ready. lat: " + latitude + ", lng: " + longitude + ", map: " + (mMap != null));
+                            Log.w("EventDetail", "Map not updated - missing coordinates or map not ready. lat: " + latitude + ", lng: " + longitude + ", map: " + (mMap != null));
+                            findViewById(R.id.map).setVisibility(View.GONE);
                         }
 
-                        // Load host information
+                        // Load host information with null check
                         if (hostId != null) {
                             loadHostInfo(hostId, hostProfileImage, hostName);
+                            // Set up click listeners for host avatar/name (only if navigation is enabled)
+                            if (!disableProfileNavigation) {
+                                hostProfileImage.setOnClickListener(v ->
+                                    openProfile(hostName.getText().toString(), hostId)
+                                );
+                                hostName.setOnClickListener(v ->
+                                    openProfile(hostName.getText().toString(), hostId)
+                                );
+                            } else {
+                                // Disable profile navigation - show toast instead
+                                hostProfileImage.setOnClickListener(v ->
+                                    Toast.makeText(this, "Profile navigation disabled", Toast.LENGTH_SHORT).show()
+                                );
+                                hostName.setOnClickListener(v ->
+                                    Toast.makeText(this, "Profile navigation disabled", Toast.LENGTH_SHORT).show()
+                                );
+                            }
+                        } else {
+                            hostName.setText("Unknown Host");
+                            hostProfileImage.setImageResource(R.drawable.ic_default_avatar);
+                            // Disable click listeners for unknown host
+                            hostProfileImage.setOnClickListener(v ->
+                                Toast.makeText(this, "Host information not available", Toast.LENGTH_SHORT).show()
+                            );
+                            hostName.setOnClickListener(v ->
+                                Toast.makeText(this, "Host information not available", Toast.LENGTH_SHORT).show()
+                            );
                         }
-                        // when user taps host avatar/name, open ProfileActivity
-                        hostProfileImage.setOnClickListener(v ->
-                            openProfile(hostName.getText().toString())
-                        );
-                        hostName.setOnClickListener(v ->
-                            openProfile(hostName.getText().toString())
-                        );
 
                         // Load attendees information
                         if (attendeeIds != null && !attendeeIds.isEmpty()) {
@@ -444,20 +516,42 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
                         if (name != null) {
                             hostName.setText(name);
+                        } else {
+                            hostName.setText("Unknown Host");
                         }
 
-                        // Load profile image
+                        // Load profile image with null check
                         if (profileImageUrl != null && !profileImageUrl.isEmpty()) {
                             Glide.with(this)
                                     .load(profileImageUrl)
-                                    .placeholder(R.drawable.ic_launcher_foreground)
+                                    .placeholder(R.drawable.ic_default_avatar)
                                     .into(hostProfileImage);
+                        } else {
+                            hostProfileImage.setImageResource(R.drawable.ic_default_avatar);
                         }
+                    } else {
+                        hostName.setText("Unknown Host");
+                        hostProfileImage.setImageResource(R.drawable.ic_default_avatar);
+                        // Disable click listeners when host document doesn't exist
+                        hostProfileImage.setOnClickListener(v ->
+                            Toast.makeText(this, "Host information not available", Toast.LENGTH_SHORT).show()
+                        );
+                        hostName.setOnClickListener(v ->
+                            Toast.makeText(this, "Host information not available", Toast.LENGTH_SHORT).show()
+                        );
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.w("EventDetail", "Error loading host info", e);
                     hostName.setText("Unknown Host");
+                    hostProfileImage.setImageResource(R.drawable.ic_default_avatar);
+                    // Disable click listeners when host info loading fails
+                    hostProfileImage.setOnClickListener(v ->
+                        Toast.makeText(this, "Host information not available", Toast.LENGTH_SHORT).show()
+                    );
+                    hostName.setOnClickListener(v ->
+                        Toast.makeText(this, "Host information not available", Toast.LENGTH_SHORT).show()
+                    );
                 });
     }
 
@@ -476,12 +570,24 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                 }
             }
         }
+        
+        // Clear existing attendees list to avoid duplicates
         List<Attendee> attendees = new ArrayList<>();
-        // No longer set attendeesCount separately
+        
+        // Update attendees count
         if (attendeesTitle != null) {
             attendeesTitle.setText("\uD83D\uDC65 Attendees (" + attendeeIds.size() + ")");
         }
+        
+        // If no attendees, clear the adapters
+        if (attendeeIds.isEmpty()) {
+            attendeesAvatarRecyclerView.setAdapter(null);
+            attendeesRecyclerView.setAdapter(null);
+            return;
+        }
+        
         // Load each attendee's information
+        final int[] loadedCount = {0};
         for (String attendeeId : attendeeIds) {
             db.collection("users").document(attendeeId)
                     .get()
@@ -493,21 +599,50 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                             attendee.setProfileImageUrl(document.getString("profileImageUrl"));
                             attendee.setEmail(document.getString("email"));
                             attendees.add(attendee);
+                            
+                            loadedCount[0]++;
                             // Update both avatar row and full list when all data is loaded
-                            if (attendees.size() == attendeeIds.size()) {
-                                // Horizontal avatar adapter
-                                AttendeeAvatarAdapter avatarAdapter = new AttendeeAvatarAdapter(this, attendees, 5, () -> showAttendeesDialog(attendees));
+                            if (loadedCount[0] == attendeeIds.size()) {
+                                // Horizontal avatar adapter with attendee click support
+                                AttendeeAvatarAdapter avatarAdapter = new AttendeeAvatarAdapter(this, attendees, 5, 
+                                    () -> showAttendeesDialog(attendees), 
+                                    clickedAttendee -> openAttendeeProfile(clickedAttendee));
                                 attendeesAvatarRecyclerView.setAdapter(avatarAdapter);
-                                // Full list adapter for popup
-                                AttendeeAdapter adapter = new AttendeeAdapter(this, attendees);
+                                // Full list adapter for popup with attendee click support
+                                AttendeeAdapter adapter = new AttendeeAdapter(this, attendees, clickedAttendee -> openAttendeeProfile(clickedAttendee));
                                 attendeesRecyclerView.setAdapter(adapter);
+                            }
+                        } else {
+                            loadedCount[0]++;
+                            // Handle case where user document doesn't exist
+                            if (loadedCount[0] == attendeeIds.size()) {
+                                updateAttendeesAdapters(attendees);
                             }
                         }
                     })
                     .addOnFailureListener(e -> {
                         Log.w("EventDetail", "Error loading attendee info for " + attendeeId, e);
+                        loadedCount[0]++;
+                        // Handle case where loading failed
+                        if (loadedCount[0] == attendeeIds.size()) {
+                            updateAttendeesAdapters(attendees);
+                        }
                     });
         }
+    }
+    
+    private void updateAttendeesAdapters(List<Attendee> attendees) {
+        RecyclerView attendeesAvatarRecyclerView = findViewById(R.id.attendeesAvatarRecyclerView);
+        RecyclerView attendeesRecyclerView = findViewById(R.id.attendeesRecyclerView);
+        
+        // Horizontal avatar adapter with attendee click support
+        AttendeeAvatarAdapter avatarAdapter = new AttendeeAvatarAdapter(this, attendees, 5, 
+            () -> showAttendeesDialog(attendees), 
+            clickedAttendee -> openAttendeeProfile(clickedAttendee));
+        attendeesAvatarRecyclerView.setAdapter(avatarAdapter);
+        // Full list adapter for popup with attendee click support
+        AttendeeAdapter adapter = new AttendeeAdapter(this, attendees, clickedAttendee -> openAttendeeProfile(clickedAttendee));
+        attendeesRecyclerView.setAdapter(adapter);
     }
 
     private void showAttendeesDialog(List<Attendee> attendees) {
@@ -522,8 +657,88 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         }
         RecyclerView dialogRecyclerView = dialog.findViewById(R.id.dialogAttendeesRecyclerView);
         dialogRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        dialogRecyclerView.setAdapter(new AttendeeAdapter(this, attendees));
+        dialogRecyclerView.setAdapter(new AttendeeAdapter(this, attendees, clickedAttendee -> openAttendeeProfile(clickedAttendee)));
         dialog.findViewById(R.id.dialogCloseButton).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
+    }
+
+    private void setupAttendeesListener() {
+        // Listen for real-time changes to the event document
+        db.collection("events").document(eventId)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null) {
+                        Log.w("EventDetail", "Error listening for attendees changes", error);
+                        return;
+                    }
+                    
+                    if (snapshot != null && snapshot.exists()) {
+                        List<String> attendeeIds = (List<String>) snapshot.get("attendees");
+                        TextView attendeesCount = findViewById(R.id.attendeesCount);
+                        RecyclerView attendeesRecyclerView = findViewById(R.id.attendeesRecyclerView);
+                        
+                        if (attendeeIds != null && !attendeeIds.isEmpty()) {
+                            loadAttendeesInfo(attendeeIds, attendeesCount, attendeesRecyclerView);
+                        } else {
+                            // Find the Attendees title TextView
+                            View attendeesRow = findViewById(R.id.attendeesRow);
+                            TextView attendeesTitle = null;
+                            if (attendeesRow instanceof ViewGroup) {
+                                ViewGroup vg = (ViewGroup) attendeesRow;
+                                for (int i = 0; i < vg.getChildCount(); i++) {
+                                    View v = vg.getChildAt(i);
+                                    if (v instanceof TextView && ((TextView) v).getText().toString().contains("Attendees")) {
+                                        attendeesTitle = (TextView) v;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (attendeesTitle != null) {
+                                attendeesTitle.setText("\uD83D\uDC65 Attendees (0)");
+                            }
+                            
+                            // Clear adapters when no attendees
+                            RecyclerView attendeesAvatarRecyclerView = findViewById(R.id.attendeesAvatarRecyclerView);
+                            attendeesAvatarRecyclerView.setAdapter(null);
+                            attendeesRecyclerView.setAdapter(null);
+                        }
+                    }
+                });
+    }
+
+    private void refreshAttendeesList() {
+        // Get the current attendees from the event document
+        db.collection("events").document(eventId)
+                .get()
+                .addOnSuccessListener(document -> {
+                    if (document.exists()) {
+                        List<String> attendeeIds = (List<String>) document.get("attendees");
+                        TextView attendeesCount = findViewById(R.id.attendeesCount);
+                        RecyclerView attendeesRecyclerView = findViewById(R.id.attendeesRecyclerView);
+                        
+                        if (attendeeIds != null && !attendeeIds.isEmpty()) {
+                            loadAttendeesInfo(attendeeIds, attendeesCount, attendeesRecyclerView);
+                        } else {
+                            // Find the Attendees title TextView
+                            View attendeesRow = findViewById(R.id.attendeesRow);
+                            TextView attendeesTitle = null;
+                            if (attendeesRow instanceof ViewGroup) {
+                                ViewGroup vg = (ViewGroup) attendeesRow;
+                                for (int i = 0; i < vg.getChildCount(); i++) {
+                                    View v = vg.getChildAt(i);
+                                    if (v instanceof TextView && ((TextView) v).getText().toString().contains("Attendees")) {
+                                        attendeesTitle = (TextView) v;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (attendeesTitle != null) {
+                                attendeesTitle.setText("\uD83D\uDC65 Attendees (0)");
+                            }
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.w("EventDetail", "Error refreshing attendees list", e);
+                });
     }
 }

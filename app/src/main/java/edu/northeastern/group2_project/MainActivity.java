@@ -88,8 +88,28 @@ public class MainActivity extends AppCompatActivity {
         // Check if user is already signed in
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
-            updateUI(currentUser);
+            // Instead of automatically logging in, show a dialog asking user if they want to stay logged in
+            showLoginChoiceDialog(currentUser);
         }
+    }
+
+    private void showLoginChoiceDialog(FirebaseUser user) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Welcome Back!")
+                .setMessage("You are already logged in as " + user.getEmail() + ". Would you like to continue or sign in with a different account?")
+                .setPositiveButton("Continue", (dialog, which) -> {
+                    updateUI(user);
+                })
+                .setNegativeButton("Sign in with different account", (dialog, which) -> {
+                    // Sign out and stay on login screen
+                    mAuth.signOut();
+                    mGoogleSignInClient.signOut();
+                    UserLocalStorage localStorage = new UserLocalStorage(this);
+                    localStorage.clearUserData();
+                    Toast.makeText(this, "Please sign in with your preferred account", Toast.LENGTH_SHORT).show();
+                })
+                .setCancelable(false)
+                .show();
     }
 
     private void signInWithEmail(String email, String password) {

@@ -18,10 +18,22 @@ public class AttendeeAdapter extends RecyclerView.Adapter<AttendeeAdapter.Attend
 
     private final List<Attendee> attendees;
     private final Context context;
+    private final OnAttendeeClickListener listener;
+
+    public interface OnAttendeeClickListener {
+        void onAttendeeClick(Attendee attendee);
+    }
 
     public AttendeeAdapter(Context context, List<Attendee> attendees) {
         this.context = context;
         this.attendees = attendees;
+        this.listener = null;
+    }
+
+    public AttendeeAdapter(Context context, List<Attendee> attendees, OnAttendeeClickListener listener) {
+        this.context = context;
+        this.attendees = attendees;
+        this.listener = listener;
     }
 
     public static class AttendeeViewHolder extends RecyclerView.ViewHolder {
@@ -52,11 +64,18 @@ public class AttendeeAdapter extends RecyclerView.Adapter<AttendeeAdapter.Attend
         if (attendee.getProfileImageUrl() != null && !attendee.getProfileImageUrl().isEmpty()) {
             Glide.with(context)
                     .load(attendee.getProfileImageUrl())
-                    .placeholder(R.drawable.ic_launcher_foreground)
+                    .placeholder(R.drawable.ic_default_avatar)
                     .into(holder.profileImage);
         } else {
-            holder.profileImage.setImageResource(R.drawable.ic_launcher_foreground);
+            holder.profileImage.setImageResource(R.drawable.ic_default_avatar);
         }
+        
+        // Set click listener for the entire item
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onAttendeeClick(attendee);
+            }
+        });
     }
 
     @Override

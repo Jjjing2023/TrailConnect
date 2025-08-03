@@ -79,6 +79,7 @@ import okhttp3.Response;
 
 public class CreateEventActivity extends AppCompatActivity {
 
+    private static final String TAG = "CreateEventActivity";
     private static final int PICK_IMAGES_REQUEST = 1;
     private ArrayList<Uri> imageUris = new ArrayList<>();
     private LinearLayout imagePreviewLayout;
@@ -100,6 +101,10 @@ public class CreateEventActivity extends AppCompatActivity {
 
     // Keep the raw results so we can map list item -> feature
     private java.util.List<FeatureCollection.Feature> lastAddrResults = new java.util.ArrayList<>();
+    
+    // Flag to prevent duplicate submissions
+    private boolean isSubmitting = false;
+    private Button createButton;
 
 
     @Override
@@ -124,6 +129,9 @@ public class CreateEventActivity extends AppCompatActivity {
 
         Button btnCreate = findViewById(R.id.btnCreateEvent);
         btnCreate.setOnClickListener(v -> uploadImagesAndSaveEvent());
+        
+        // Store button reference for updating state
+        this.createButton = btnCreate;
 
         EditText startDateTimeField = findViewById(R.id.startDateTime);
         EditText endDateTimeField = findViewById(R.id.endDateTime);
@@ -183,6 +191,18 @@ public class CreateEventActivity extends AppCompatActivity {
                 addrHandler.postDelayed(addrPending, ADDR_DEBOUNCE);
             }
         });
+        
+        // Log API key status for debugging
+        Log.d(TAG, "IMGBB_API_KEY configured: " + (BuildConfig.IMGBB_API_KEY != null && !BuildConfig.IMGBB_API_KEY.isEmpty()));
+        if (BuildConfig.IMGBB_API_KEY != null) {
+            Log.d(TAG, "IMGBB_API_KEY length: " + BuildConfig.IMGBB_API_KEY.length());
+            Log.d(TAG, "IMGBB_API_KEY starts with: " + BuildConfig.IMGBB_API_KEY.substring(0, Math.min(10, BuildConfig.IMGBB_API_KEY.length())));
+            
+            // Test API key validity
+            testImgBBAPIKey();
+        } else {
+            Log.e(TAG, "IMGBB_API_KEY is null or empty - this will cause image upload to fail!");
+        }
     }
 
     private void showDateTimePicker(EditText targetField) {
@@ -209,6 +229,15 @@ public class CreateEventActivity extends AppCompatActivity {
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         intent.setAction(Intent.ACTION_GET_CONTENT);
         startActivityForResult(Intent.createChooser(intent, "Select Pictures"), PICK_IMAGES_REQUEST);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Reset submitting flag when activity is destroyed
+        isSubmitting = false;
+        updateButtonState(false);
+        Log.d(TAG, "Reset isSubmitting to false due to activity destruction");
     }
 
     @Override
@@ -301,28 +330,70 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void uploadImagesAndSaveEvent() {
+        Log.d(TAG, "Starting uploadImagesAndSaveEvent");
+        
+        // Prevent duplicate submissions
+        if (isSubmitting) {
+            Log.d(TAG, "Already submitting, ignoring duplicate request");
+            Toast.makeText(this, "Event creation in progress, please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         // validation
-        if (!validateInputs()) return;
+        if (!validateInputs()) {
+            Log.e(TAG, "Input validation failed");
+            return;
+        }
+        
+        // Set submitting flag and update button state
+        isSubmitting = true;
+        updateButtonState(true);
+        Log.d(TAG, "Set isSubmitting to true");
 
         List<String> imageUrls = new ArrayList<>();
         List<Uri> imagesToUpload = new ArrayList<>(imageUris);
 
+        Log.d(TAG, "Number of images to upload: " + imagesToUpload.size());
+
         if (imagesToUpload.isEmpty()) {
+            Log.d(TAG, "No images to upload, proceeding to save event");
             saveEventToFirestore(imageUrls);
             return;
         }
 
+        final int[] uploadedCount = {0};
+        final int[] failedCount = {0};
+        
         for (Uri imageUri : imagesToUpload) {
+            Log.d(TAG, "Uploading image: " + imageUri.toString());
+            
             uploadImageToImgBB(imageUri, new OnUrlReadyCallback() {
                 @Override
                 public void onUrlReady(String url) {
                     if (url != null) {
+                        Log.d(TAG, "Image upload successful, adding URL: " + url);
                         imageUrls.add(url);
-                        if (imageUrls.size() == imagesToUpload.size()) {
-                            saveEventToFirestore(imageUrls);
-                        }
+                        uploadedCount[0]++;
                     } else {
+                        Log.e(TAG, "Image upload failed for URI: " + imageUri.toString());
+                        failedCount[0]++;
                         Toast.makeText(CreateEventActivity.this, "Image upload failed.", Toast.LENGTH_SHORT).show();
+                    }
+                    
+                    Log.d(TAG, "Upload progress: " + uploadedCount[0] + " successful, " + failedCount[0] + " failed, " + imagesToUpload.size() + " total");
+                    
+                    if (uploadedCount[0] + failedCount[0] == imagesToUpload.size()) {
+                        Log.d(TAG, "All image uploads completed. Successful: " + uploadedCount[0] + ", Failed: " + failedCount[0]);
+                        if (uploadedCount[0] > 0) {
+                            saveEventToFirestore(imageUrls);
+                        } else {
+                            Log.e(TAG, "All image uploads failed, cannot save event");
+                            Toast.makeText(CreateEventActivity.this, "All image uploads failed. Please try again.", Toast.LENGTH_LONG).show();
+                            // Reset submitting flag when all image uploads fail
+                            isSubmitting = false;
+                            updateButtonState(false);
+                            Log.d(TAG, "Reset isSubmitting to false due to all image uploads failing");
+                        }
                     }
                 }
             });
@@ -370,7 +441,13 @@ public class CreateEventActivity extends AppCompatActivity {
         }
     }
     private void saveEventToFirestore(List<String> imageUrls) {
-        if (!validateInputs()) return;
+        if (!validateInputs()) {
+            // Reset submitting flag when validation fails
+            isSubmitting = false;
+            updateButtonState(false);
+            Log.d(TAG, "Reset isSubmitting to false due to validation failure");
+            return;
+        }
 
         String eventName = getTextOrEmpty(R.id.eventName);
         String startTime = getTextOrEmpty(R.id.startDateTime);
@@ -439,21 +516,58 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("latitude", latitude);
         event.put("longitude", longitude);
         event.put("postTime", FieldValue.serverTimestamp());
+        event.put("host", hostId);  // Add host ID for querying hosted events
+        event.put("hostInfo", hostInfo);  // Add detailed host information
 
+        Log.d(TAG, "Saving event with host ID: " + hostId);
         firestore.collection("events")
                 .add(event)
                 .addOnSuccessListener(documentReference -> {
+                    Log.d(TAG, "Event created successfully with ID: " + documentReference.getId());
+                    
+                    // Update user's hosted events list
+                    updateUserHostedEvents(hostId, documentReference.getId());
+                    
                     Toast.makeText(this, "Event created!", Toast.LENGTH_SHORT).show();
                     finish();
                 })
                 .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to save event", e);
                     Toast.makeText(this, "Failed to save event.", Toast.LENGTH_SHORT).show();
+                    // Reset submitting flag on failure
+                    isSubmitting = false;
+                    updateButtonState(false);
+                    Log.d(TAG, "Reset isSubmitting to false due to failure");
                 });
     }
 
     private String getTextOrEmpty(int editTextId) {
         EditText field = findViewById(editTextId);
         return field != null ? field.getText().toString().trim() : "";
+    }
+
+    private void updateUserHostedEvents(String userId, String eventId) {
+        firestore.collection("users").document(userId)
+                .update("hostedEvents", FieldValue.arrayUnion(eventId))
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Successfully updated user's hosted events list");
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to update user's hosted events list", e);
+                    // Don't show error to user as event was created successfully
+                });
+    }
+
+    private void updateButtonState(boolean isSubmitting) {
+        if (createButton != null) {
+            if (isSubmitting) {
+                createButton.setText("Creating Event...");
+                createButton.setEnabled(false);
+            } else {
+                createButton.setText("Create Event");
+                createButton.setEnabled(true);
+            }
+        }
     }
 
     // input validation
@@ -541,13 +655,24 @@ public class CreateEventActivity extends AppCompatActivity {
 
     // Upload image to ImgBB to get url
     private void uploadImageToImgBB(Uri imageUri, OnUrlReadyCallback callback) {
+        Log.d(TAG, "Starting image upload for URI: " + imageUri.toString());
+        
         try {
             InputStream inputStream = getContentResolver().openInputStream(imageUri);
+            if (inputStream == null) {
+                Log.e(TAG, "Failed to open input stream for URI: " + imageUri.toString());
+                callback.onUrlReady(null);
+                return;
+            }
+            
             byte[] imageBytes = new byte[inputStream.available()];
             inputStream.read(imageBytes);
             inputStream.close();
+            
+            Log.d(TAG, "Image size: " + imageBytes.length + " bytes");
 
             String base64Image = Base64.encodeToString(imageBytes, Base64.DEFAULT);
+            Log.d(TAG, "Base64 encoded image length: " + base64Image.length());
 
             OkHttpClient client = new OkHttpClient();
 
@@ -561,10 +686,15 @@ public class CreateEventActivity extends AppCompatActivity {
                     .post(formBody)
                     .build();
 
+            Log.d(TAG, "Sending request to ImgBB API");
+            Log.d(TAG, "API Key length: " + (BuildConfig.IMGBB_API_KEY != null ? BuildConfig.IMGBB_API_KEY.length() : "null"));
+
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
+                    Log.e(TAG, "Network failure during image upload", e);
                     runOnUiThread(() -> {
+                        Log.e(TAG, "Image upload failed due to network error");
                         callback.onUrlReady(null);
                     });
                 }
@@ -572,13 +702,26 @@ public class CreateEventActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String json = response.body().string();
+                    Log.d(TAG, "ImgBB API response: " + json);
+                    
                     try {
                         JSONObject obj = new JSONObject(json);
-                        String url = obj.getJSONObject("data").getString("url");
-                        runOnUiThread(() -> {
-                            callback.onUrlReady(url);
-                        });
+                        if (obj.has("data") && obj.getJSONObject("data").has("url")) {
+                            String url = obj.getJSONObject("data").getString("url");
+                            Log.d(TAG, "Image upload successful, URL: " + url);
+                            runOnUiThread(() -> {
+                                callback.onUrlReady(url);
+                            });
+                        } else {
+                            Log.e(TAG, "ImgBB API response does not contain expected data structure");
+                            Log.e(TAG, "Response JSON: " + json);
+                            runOnUiThread(() -> {
+                                callback.onUrlReady(null);
+                            });
+                        }
                     } catch (Exception e) {
+                        Log.e(TAG, "Error parsing ImgBB API response", e);
+                        Log.e(TAG, "Response JSON: " + json);
                         runOnUiThread(() -> {
                             callback.onUrlReady(null);
                         });
@@ -587,6 +730,7 @@ public class CreateEventActivity extends AppCompatActivity {
             });
 
         } catch (Exception e) {
+            Log.e(TAG, "Error during image upload preparation", e);
             callback.onUrlReady(null);
         }
     }
@@ -598,6 +742,55 @@ public class CreateEventActivity extends AppCompatActivity {
         void onUrlReady(String url);
     }
 
+    private void testImgBBAPIKey() {
+        // Create a simple test image (1x1 pixel)
+        String testImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+        
+        OkHttpClient client = new OkHttpClient();
+        RequestBody formBody = new FormBody.Builder()
+                .add("key", BuildConfig.IMGBB_API_KEY)
+                .add("image", testImageBase64)
+                .build();
+
+        Request request = new Request.Builder()
+                .url("https://api.imgbb.com/1/upload")
+                .post(formBody)
+                .build();
+
+        Log.d(TAG, "Testing ImgBB API key validity...");
+        
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "API key test failed due to network error", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String json = response.body().string();
+                Log.d(TAG, "API key test response: " + json);
+                
+                try {
+                    JSONObject obj = new JSONObject(json);
+                    if (obj.has("status_code") && obj.getInt("status_code") == 400) {
+                        Log.e(TAG, "API key is INVALID: " + obj.getString("status_txt"));
+                        runOnUiThread(() -> {
+                            Toast.makeText(CreateEventActivity.this, 
+                                "ImgBB API key is invalid. Please check your configuration.", 
+                                Toast.LENGTH_LONG).show();
+                        });
+                    } else if (obj.has("data") && obj.getJSONObject("data").has("url")) {
+                        Log.d(TAG, "API key is VALID - test upload successful");
+                    } else {
+                        Log.e(TAG, "Unexpected API response format: " + json);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing API test response", e);
+                }
+            }
+        });
+    }
+
     private String getPathFromUri(Uri uri) {
         String result = null;
         String[] proj = {MediaStore.Images.Media.DATA};
@@ -606,7 +799,7 @@ public class CreateEventActivity extends AppCompatActivity {
             int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
             result = cursor.getString(column_index);
             cursor.close();
-            Log.d("CreateEventActivity", "Path from MediaStore: " + result);
+            Log.d(TAG, "Path from MediaStore: " + result);
         }
         if (result == null) {
             File file = new File(getCacheDir(), UUID.randomUUID().toString() + ".jpg");
@@ -618,14 +811,14 @@ public class CreateEventActivity extends AppCompatActivity {
                     outputStream.write(buf, 0, len);
                 }
                 result = file.getAbsolutePath();
-                Log.d("CreateEventActivity", "Path from cache copy: " + result);
+                Log.d(TAG, "Path from cache copy: " + result);
             } catch (IOException e) {
                 e.printStackTrace();
-                Log.e("CreateEventActivity", "Error copying URI to cache: " + e.getMessage());
+                Log.e(TAG, "Error copying URI to cache: " + e.getMessage());
             }
         }
         if (result == null) {
-            Log.e("CreateEventActivity", "Failed to get any path from URI: " + uri.toString());
+            Log.e(TAG, "Failed to get any path from URI: " + uri.toString());
         }
         return result;
     }

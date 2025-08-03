@@ -62,6 +62,12 @@ public class EventsAdapter extends RecyclerView.Adapter<EventsAdapter.EventViewH
         return events.size();
     }
 
+    // Method to update the events list for search functionality
+    public void updateEvents(List<Event> newEvents) {
+        this.events = newEvents;
+        notifyDataSetChanged();
+    }
+
     public static class EventViewHolder extends RecyclerView.ViewHolder {
         ImageView eventImage;
         TextView eventName, eventLocation, eventStartTime;
