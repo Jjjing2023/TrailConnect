@@ -25,7 +25,8 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
-
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.SetOptions;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -201,9 +202,9 @@ public class MainActivity extends AppCompatActivity {
                                 userData.put("name", displayName != null ? displayName : (firstName + " " + lastName));
 
                                 com.google.firebase.firestore.FirebaseFirestore db = com.google.firebase.firestore.FirebaseFirestore.getInstance();
-                                db.collection("users").document(userId).set(userData)
+                                db.collection("users").document(userId).set(userData, SetOptions.merge())
                                         .addOnSuccessListener(aVoid -> {
-                                            Log.d(TAG, "Google user info written to Firestore.");
+                                            Log.d(TAG, "Google user info merged to Firestore.");
                                             updateUI(user);
                                         })
                                         .addOnFailureListener(e -> {
@@ -212,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
                                             updateUI(user);
                                         });
                             } else {
-                                updateUI(user);
+                                updateUI(null);
                             }
                         } else {
                             // Sign in fails

@@ -18,7 +18,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.google.firebase.firestore.FirebaseFirestore;
-
+import com.google.firebase.firestore.SetOptions;
 
 public class SignUpActivity extends AppCompatActivity {
     private static final String TAG = "SignUpActivity";
@@ -74,6 +74,11 @@ public class SignUpActivity extends AppCompatActivity {
                             // Sign in success
                             Log.d(TAG, "createUserWithEmail:success");
                             FirebaseUser user = mAuth.getCurrentUser();
+                            if (user == null) {
+                                Toast.makeText(SignUpActivity.this,
+                                        "User creation failed.", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
 
                             // Set display name
                             UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
@@ -84,28 +89,29 @@ public class SignUpActivity extends AppCompatActivity {
                                     .addOnCompleteListener(profileTask -> {
                                         if (profileTask.isSuccessful()) {
                                             Log.d(TAG, "User profile updated.");
-                                            // Write user info to Firestore
-                                            String userId = user.getUid();
-                                            String email = user.getEmail();
-                                            String profileImageUrl = "https://via.placeholder.com/150";
-                                            FirebaseFirestore db = FirebaseFirestore.getInstance();
-                                            java.util.Map<String, Object> userData = new java.util.HashMap<>();
-                                            userData.put("firstName", firstName);
-                                            userData.put("lastName", lastName);
-                                            userData.put("email", email);
-                                            userData.put("profileImageUrl", profileImageUrl);
-                                            userData.put("name", firstName + " " + lastName);
-                                            db.collection("users").document(userId).set(userData)
-                                                .addOnSuccessListener(aVoid -> {
-                                                    Log.d(TAG, "User info written to Firestore.");
-                                                    updateUI(user);
-                                                })
-                                                .addOnFailureListener(e -> {
-                                                    Log.w(TAG, "Error writing user info to Firestore", e);
-                                                    Toast.makeText(SignUpActivity.this, "Failed to save user info.", Toast.LENGTH_SHORT).show();
-                                                    updateUI(user);
-                                                });
                                         }
+                                        // Write user info to Firestore
+                                        String userId = user.getUid();
+                                        String email = user.getEmail();
+                                        String profileImageUrl = "https://via.placeholder.com/150";
+                                        FirebaseFirestore db = FirebaseFirestore.getInstance();
+                                        java.util.Map<String, Object> userData = new java.util.HashMap<>();
+                                        userData.put("firstName", firstName);
+                                        userData.put("lastName", lastName);
+                                        userData.put("email", email);
+                                        userData.put("profileImageUrl", profileImageUrl);
+                                        userData.put("name", firstName + " " + lastName);
+                                        db.collection("users").document(userId).set(userData, SetOptions.merge())
+                                          .addOnSuccessListener(aVoid -> {
+                                              Log.d(TAG, "User info written to Firestore.");
+                                              updateUI(user);
+                                          })
+                                          .addOnFailureListener(e -> {
+                                              Log.w(TAG, "Error writing user info to Firestore", e);
+                                              Toast.makeText(SignUpActivity.this, "Failed to save user info.", Toast.LENGTH_SHORT).show();
+                                              updateUI(user);
+                                          });
+
                                     });
                         } else {
                             // If sign up fails, display a message to the user.
