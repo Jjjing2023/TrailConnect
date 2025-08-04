@@ -47,7 +47,6 @@
                 android:layout_height="128dp"
                 android:src="@drawable/ic_default_avatar"
                 android:scaleType="centerCrop"
-                android:background="@drawable/circle_bg"
                 android:padding="4dp"/>
 
             <!-- User name -->
