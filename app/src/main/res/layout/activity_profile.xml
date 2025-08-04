@@ -61,6 +61,43 @@
                 android:textColor="#333333"
                 android:layout_marginTop="16dp"/>
 
+            <!-- Self-Info container -->
+            <LinearLayout
+                android:id="@+id/selfInfoContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp"
+                android:padding="16dp"
+                android:background="@drawable/rounded_light_gray_bg">
+
+                <TextView
+                    android:id="@+id/profile_email"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/profile_email_placeholder"
+                    android:textSize="14sp"
+                    android:textColor="#444"/>
+
+                <TextView
+                    android:id="@+id/profile_phone"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/profile_phone_placeholder"
+                    android:textSize="14sp"
+                    android:textColor="#444"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+
+            <!-- Edit Profile button -->
+            <Button
+                android:id="@+id/btn_edit_profile"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/edit_profile"
+                android:layout_marginTop="12dp"
+                android:layout_gravity="center_horizontal"/>
+
             <!-- Stats row -->
             <LinearLayout
                 android:layout_width="wrap_content"
