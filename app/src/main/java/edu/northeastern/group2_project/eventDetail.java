@@ -31,6 +31,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.android.gms.maps.GoogleMap;
@@ -295,7 +296,40 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 
                 if (userId.equals(hostId)) {
                     // if host, then hide the join button
-                    joinButton.setVisibility(View.GONE);
+                    joinButton.setText("Delete");
+                    joinButton.setVisibility(View.VISIBLE);
+                    joinButton.setOnClickListener(v -> {
+                        new AlertDialog.Builder(eventDetail.this)
+                                .setTitle("Delete Event")
+                                .setMessage("Are you sure you want to delete this event?")
+                                .setPositiveButton("Yes", (dialog, which) -> {
+                                    // 1. delete event document
+                                    eventRef.delete().addOnSuccessListener(aVoid -> {
+                                        // 2. remove from hostedEvents
+                                        userRef.update("hostedEvents", FieldValue.arrayRemove(eventId));
+
+                                        // 3. remove eventId from joinedEvents for all users
+                                        db.collection("users").get().addOnSuccessListener(querySnapshot -> {
+                                            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                                                List<String> joinedEvents = (List<String>) doc.get("joinedEvents");
+                                                if (joinedEvents != null && joinedEvents.contains(eventId)) {
+                                                    doc.getReference().update("joinedEvents", FieldValue.arrayRemove(eventId));
+                                                }
+                                            }
+                                            Snackbar.make(findViewById(android.R.id.content), "Event deleted", Snackbar.LENGTH_SHORT).show();
+                                            finish(); // back to last activity
+                                        }).addOnFailureListener(e -> {
+                                            Snackbar.make(findViewById(android.R.id.content), "Event deleted, but failed to update joined users", Snackbar.LENGTH_LONG).show();
+                                            finish();
+                                        });
+                                    }).addOnFailureListener(e -> {
+                                        Snackbar.make(findViewById(android.R.id.content), "Failed to delete event", Snackbar.LENGTH_SHORT).show();
+                                    });
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    });
+
                     return;
                 }
 
