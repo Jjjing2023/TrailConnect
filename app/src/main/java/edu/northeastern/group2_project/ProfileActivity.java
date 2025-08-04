@@ -47,6 +47,7 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView hostedCount;
     private TextView likedCount;
     private ImageView profileAvatar;
+    private TextView emailView, phoneView;
     private TabLayout tabLayout;
     private RecyclerView eventsRecyclerView;
     private EventsAdapter eventsAdapter;
@@ -112,6 +113,22 @@ public class ProfileActivity extends AppCompatActivity {
             // Viewing someone else's profile, hide logout button
             logoutButton.setVisibility(View.GONE);
         }
+
+        // Find Edit Profile button (Only show if viewing own profile)
+        Button editProfileBtn = findViewById(R.id.btn_edit_profile);
+        if (isViewingOwnProfile) {
+            editProfileBtn.setVisibility(View.VISIBLE);
+            editProfileBtn.setOnClickListener(v -> {
+                // Launch edit profile screen
+                Intent i = new Intent(ProfileActivity.this, EditProfileActivity.class);
+                i.putExtra(EditProfileActivity.EXTRA_USERNAME, targetUserId);
+                startActivity(i);
+            });
+        } else {
+            // Viewing someone else's profile, hide edit profile button
+            editProfileBtn.setVisibility(View.GONE);
+        }
+
     }
 
     private void initializeViews() {
@@ -120,6 +137,8 @@ public class ProfileActivity extends AppCompatActivity {
         hostedCount = findViewById(R.id.profile_hosted_count);
         likedCount = findViewById(R.id.profile_liked_count);
         profileAvatar = findViewById(R.id.profile_avatar);
+        emailView        = findViewById(R.id.profile_email);
+        phoneView        = findViewById(R.id.profile_phone);
         tabLayout = findViewById(R.id.tabLayout);
         eventsRecyclerView = findViewById(R.id.eventsRecyclerView);
     }
@@ -180,14 +199,16 @@ public class ProfileActivity extends AppCompatActivity {
                         if (document.exists()) {
                             String name = document.getString("name");
                             String profileImageUrl = document.getString("profileImageUrl");
-                            
+                            String email        = document.getString("email");
+                            String phone        = document.getString("phone");
+
                             if (name != null) {
                                 profileName.setText(name);
                             } else {
                                 // Fallback to email if no name
-                                String email = document.getString("email");
-                                if (email != null) {
-                                    profileName.setText(email.split("@")[0]);
+                                String emailFallback = document.getString("email");
+                                if (emailFallback != null) {
+                                    profileName.setText(emailFallback.split("@")[0]);
                                 } else {
                                     profileName.setText("Unknown User");
                                 }
@@ -199,6 +220,13 @@ public class ProfileActivity extends AppCompatActivity {
                                         .load(profileImageUrl)
                                         .placeholder(R.drawable.ic_default_avatar)
                                         .into(profileAvatar);
+                            }
+                            // load email & phone
+                            if (email != null && !email.isEmpty()) {
+                                emailView.setText("Email: " + email);
+                            }
+                            if (phone != null && !phone.isEmpty()) {
+                                phoneView.setText("Phone: " + phone);
                             }
                         } else {
                             profileName.setText("User not found");
