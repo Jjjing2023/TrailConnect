@@ -219,6 +219,8 @@ public class ProfileActivity extends AppCompatActivity {
                                 Glide.with(this)
                                         .load(profileImageUrl)
                                         .placeholder(R.drawable.ic_default_avatar)
+                                        .error(R.drawable.ic_default_avatar) // if load fails
+                                        .circleCrop() // make image circular
                                         .into(profileAvatar);
                             }
                             // load email & phone
