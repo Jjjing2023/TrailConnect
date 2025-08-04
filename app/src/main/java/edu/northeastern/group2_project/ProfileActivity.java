@@ -137,8 +137,8 @@ public class ProfileActivity extends AppCompatActivity {
         hostedCount = findViewById(R.id.profile_hosted_count);
         likedCount = findViewById(R.id.profile_liked_count);
         profileAvatar = findViewById(R.id.profile_avatar);
-        emailView        = findViewById(R.id.profile_email);
-        phoneView        = findViewById(R.id.profile_phone);
+        emailView = findViewById(R.id.profile_email);
+        phoneView = findViewById(R.id.profile_phone);
         tabLayout = findViewById(R.id.tabLayout);
         eventsRecyclerView = findViewById(R.id.eventsRecyclerView);
     }
@@ -199,8 +199,8 @@ public class ProfileActivity extends AppCompatActivity {
                         if (document.exists()) {
                             String name = document.getString("name");
                             String profileImageUrl = document.getString("profileImageUrl");
-                            String email        = document.getString("email");
-                            String phone        = document.getString("phone");
+                            String email = document.getString("email");
+                            String phone = document.getString("phone");
 
                             if (name != null) {
                                 profileName.setText(name);
@@ -242,6 +242,8 @@ public class ProfileActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Reload name, avatar, email, phone
+        loadUserData();
         // Refresh events when returning to this activity
         loadUserEvents();
     }

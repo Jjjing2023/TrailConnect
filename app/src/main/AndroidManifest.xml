@@ -18,6 +18,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Group2project">
         <activity
+            android:name=".EditProfileActivity"
+            android:exported="false" />
+        <activity
             android:name=".CreateEventActivity"
             android:exported="false" />
         <activity
