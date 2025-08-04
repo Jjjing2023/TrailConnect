@@ -392,7 +392,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         RecyclerView attendeesRecyclerView = findViewById(R.id.attendeesRecyclerView);
 
                         // Set event data
-                        String title = document.getString("title");
+                        String title = document.getString("name");
                         String startTime = document.getString("startTime");
                         String endTime = document.getString("endTime");
                         String dateTime = "";
