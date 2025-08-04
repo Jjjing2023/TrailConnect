@@ -289,48 +289,74 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         DocumentReference eventRef = db.collection("events").document(eventId);
         DocumentReference userRef = db.collection("users").document(userId);
 
-        userRef.get().addOnSuccessListener(documentSnapshot -> {
-            if (documentSnapshot.exists()) {
-                List<String> joinedEvents = (List<String>) documentSnapshot.get("joinedEvents");
-                boolean alreadyJoined = joinedEvents != null && joinedEvents.contains(eventId);
-                // If already joined, show "JOINED"
-                if (alreadyJoined) {
-                    joinButton.setText("Joined");
-                    joinButton.setEnabled(false);
-                } else {
-                    joinButton.setOnClickListener(v -> {
-                        new AlertDialog.Builder(eventDetail.this)
-                                .setTitle("Confirm Join")
-                                .setMessage("Are you sure you want to join this event?")
-                                .setPositiveButton("Yes", (dialog, which) -> {
-                                    // 1. Add userId to events/{eventId}/attendees
-                                    eventRef.update("attendees", FieldValue.arrayUnion(userId))
-                                            .addOnSuccessListener(aVoid -> {
-                                                // Add eventId to users/{userId}/joinedEvents
-                                                userRef.update("joinedEvents", FieldValue.arrayUnion(eventId))
-                                                        .addOnSuccessListener(aVoid2 -> {
-                                                            joinButton.setText("Joined");
-                                                            joinButton.setEnabled(false);
-                                                            Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
-                                                            
-                                                            // Refresh attendees list after joining
-                                                            refreshAttendeesList();
-                                                        })
-                                                        .addOnFailureListener(e -> {
-                                                            Snackbar.make(findViewById(android.R.id.content), "Failed to update user data", Snackbar.LENGTH_SHORT).show();
-                                                        });
-                                            })
-                                            .addOnFailureListener(e -> {
-                                                Snackbar.make(findViewById(android.R.id.content), "Failed to join event", Snackbar.LENGTH_SHORT).show();
-                                            });
-                                })
-                                .setNegativeButton("Cancel", null)
-                                .show();
-                    });
+        eventRef.get().addOnSuccessListener(eventSnapshot -> {
+            if (eventSnapshot.exists()) {
+                String hostId = eventSnapshot.getString("host");
+
+                if (userId.equals(hostId)) {
+                    // if host, then hide the join button
+                    joinButton.setVisibility(View.GONE);
+                    return;
                 }
+
+                // Not host, then check if joined already
+                userRef.get().addOnSuccessListener(userSnapshot -> {
+                    if (userSnapshot.exists()) {
+                        List<String> joinedEvents = (List<String>) userSnapshot.get("joinedEvents");
+                        boolean alreadyJoined = joinedEvents != null && joinedEvents.contains(eventId);
+                        joinButton.setText(alreadyJoined ? "Joined" : "Join");
+
+                        joinButton.setOnClickListener(v -> {
+                            if (joinButton.getText().toString().equals("Join")) {
+                                // Join the event
+                                eventRef.update("attendees", FieldValue.arrayUnion(userId))
+                                        .addOnSuccessListener(aVoid -> {
+                                            userRef.update("joinedEvents", FieldValue.arrayUnion(eventId))
+                                                    .addOnSuccessListener(aVoid2 -> {
+                                                        joinButton.setText("Joined");
+                                                        Snackbar.make(findViewById(android.R.id.content), "You have joined the event", Snackbar.LENGTH_SHORT).show();
+                                                        refreshAttendeesList();
+                                                    })
+                                                    .addOnFailureListener(e -> {
+                                                        Snackbar.make(findViewById(android.R.id.content), "Failed to update user data", Snackbar.LENGTH_SHORT).show();
+                                                    });
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Snackbar.make(findViewById(android.R.id.content), "Failed to join event", Snackbar.LENGTH_SHORT).show();
+                                        });
+                            } else {
+                                // If already joined, able to cancel the appointment
+                                new AlertDialog.Builder(eventDetail.this)
+                                        .setTitle("Cancel Appointment")
+                                        .setMessage("Are you sure you want to cancel your participation?")
+                                        .setPositiveButton("Yes", (dialog, which) -> {
+                                            eventRef.update("attendees", FieldValue.arrayRemove(userId))
+                                                    .addOnSuccessListener(aVoid -> {
+                                                        userRef.update("joinedEvents", FieldValue.arrayRemove(eventId))
+                                                                .addOnSuccessListener(aVoid2 -> {
+                                                                    joinButton.setText("Join");
+                                                                    Snackbar.make(findViewById(android.R.id.content), "You have cancelled the appointment", Snackbar.LENGTH_SHORT).show();
+                                                                    refreshAttendeesList();
+                                                                })
+                                                                .addOnFailureListener(e -> {
+                                                                    Snackbar.make(findViewById(android.R.id.content), "Failed to update user data", Snackbar.LENGTH_SHORT).show();
+                                                                });
+                                                    })
+                                                    .addOnFailureListener(e -> {
+                                                        Snackbar.make(findViewById(android.R.id.content), "Failed to cancel participation", Snackbar.LENGTH_SHORT).show();
+                                                    });
+                                        })
+                                        .setNegativeButton("No", null)
+                                        .show();
+                            }
+                        });
+                    }
+                }).addOnFailureListener(e -> {
+                    Snackbar.make(findViewById(android.R.id.content), "Failed to load user info.", Snackbar.LENGTH_SHORT).show();
+                });
             }
         }).addOnFailureListener(e -> {
-            Snackbar.make(findViewById(android.R.id.content), "Failed to check join status.", Snackbar.LENGTH_SHORT).show();
+            Snackbar.make(findViewById(android.R.id.content), "Failed to load event info.", Snackbar.LENGTH_SHORT).show();
         });
     }
 
