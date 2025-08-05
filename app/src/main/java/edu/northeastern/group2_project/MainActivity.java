@@ -1,14 +1,13 @@
 package edu.northeastern.group2_project;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -17,16 +16,18 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -115,20 +116,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void signInWithEmail(String email, String password) {
         mAuth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        if (task.isSuccessful()) {
-                            // Sign in success
-                            Log.d(TAG, "signInWithEmail:success");
-                            FirebaseUser user = mAuth.getCurrentUser();
-                            updateUI(user);
-                        } else {
-                            // Sign in fails
-                            Log.w(TAG, "signInWithEmail:failure", task.getException());
-                            Toast.makeText(MainActivity.this, "Authentication failed: " +
-                                    task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                        }
+                .addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful()) {
+                        updateUI(mAuth.getCurrentUser());
+                    } else {
+                        // Sign in fails
+                        Log.w(TAG, "signInWithEmail:failure", task.getException());
+                        Toast.makeText(MainActivity.this, "Authentication failed: " +
+                                task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -168,60 +163,80 @@ public class MainActivity extends AppCompatActivity {
     private void firebaseAuthWithGoogle(String idToken) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
-                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        if (task.isSuccessful()) {
-                            // Sign in success
-                            Log.d(TAG, "signInWithCredential:success");
-                            FirebaseUser user = mAuth.getCurrentUser();
+                .addOnCompleteListener(this, task -> {
+                    if (!task.isSuccessful()) {
+                        Log.w(TAG, "Firebase auth with Google failed", task.getException());
+                        Toast.makeText(this,
+                                "Authentication failed",
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
 
-                            // Write user info to Firestore (for Google sign-in)
-                            if (user != null) {
-                                String userId = user.getUid();
-                                String email = user.getEmail();
-                                String displayName = user.getDisplayName();
-                                String profileImageUrl = (user.getPhotoUrl() != null) ? user.getPhotoUrl().toString() : "https://via.placeholder.com/150";
+                    FirebaseUser user = mAuth.getCurrentUser();
+                    if (user == null) return;
 
-                                // Try to split displayName into firstName and lastName
-                                String firstName = "";
-                                String lastName = "";
-                                if (displayName != null && !displayName.isEmpty()) {
-                                    String[] parts = displayName.trim().split(" ", 2);
-                                    firstName = parts[0];
-                                    if (parts.length > 1) {
-                                        lastName = parts[1];
-                                    }
+                    String userId = user.getUid();
+                    String email = user.getEmail();
+                    String displayName = user.getDisplayName();
+                    Uri      photoUri    = user.getPhotoUrl();
+                    // split display name
+                    String firstName;
+                    String lastName;
+                    if (displayName != null) {
+                        String[] parts = displayName.trim().split(" ", 2);
+                        firstName = parts[0];
+                        if (parts.length > 1) lastName = parts[1];
+                        else {
+                            lastName = "";
+                        }
+                    } else {
+                        lastName = "";
+                        firstName = "";
+                    }
+
+                    FirebaseFirestore db     = FirebaseFirestore.getInstance();
+                    DocumentReference docRef = db.collection("users").document(userId);
+
+                    // 1) read existing doc
+                    docRef.get()
+                            .addOnSuccessListener(snapshot -> {
+                                Map<String,Object> updates = new HashMap<>();
+                                updates.put("firstName", firstName);
+                                updates.put("lastName",  lastName);
+                                updates.put("email",     email);
+                                updates.put("name",      displayName != null
+                                        ? displayName
+                                        : firstName + " " + lastName);
+                                // only set Google photo if user never set their own
+                                if (!snapshot.contains("profileImageUrl") && photoUri != null) {
+                                    updates.put("profileImageUrl", photoUri.toString());
                                 }
 
-                                java.util.Map<String, Object> userData = new java.util.HashMap<>();
-                                userData.put("firstName", firstName);
-                                userData.put("lastName", lastName);
-                                userData.put("email", email);
-                                userData.put("profileImageUrl", profileImageUrl);
-                                userData.put("name", displayName != null ? displayName : (firstName + " " + lastName));
-
-                                com.google.firebase.firestore.FirebaseFirestore db = com.google.firebase.firestore.FirebaseFirestore.getInstance();
-                                db.collection("users").document(userId).set(userData, SetOptions.merge())
-                                        .addOnSuccessListener(aVoid -> {
-                                            Log.d(TAG, "Google user info merged to Firestore.");
+                                // 2) merge back
+                                docRef.set(updates, SetOptions.merge())
+                                        .addOnSuccessListener(a -> {
+                                            Log.d(TAG, "User info merged");
                                             updateUI(user);
                                         })
                                         .addOnFailureListener(e -> {
-                                            Log.w(TAG, "Error writing Google user info to Firestore", e);
-                                            Toast.makeText(MainActivity.this, "Failed to save user info.", Toast.LENGTH_SHORT).show();
+                                            Log.w(TAG, "Failed to merge user info", e);
+                                            Toast.makeText(this,
+                                                    "Failed to save user info",
+                                                    Toast.LENGTH_SHORT).show();
                                             updateUI(user);
                                         });
-                            } else {
-                                updateUI(null);
-                            }
-                        } else {
-                            // Sign in fails
-                            Log.w(TAG, "signInWithCredential:failure", task.getException());
-                            Toast.makeText(MainActivity.this, "Firebase Auth with Google failed: " +
-                                    task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    }
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.w(TAG, "Could not read user doc", e);
+                                // fallback just merge names & email
+                                Map<String,Object> fallback = new HashMap<>();
+                                fallback.put("firstName", firstName);
+                                fallback.put("lastName",  lastName);
+                                fallback.put("email",     email);
+                                fallback.put("name",      displayName);
+                                docRef.set(fallback, SetOptions.merge())
+                                        .addOnCompleteListener(ignored -> updateUI(user));
+                            });
                 });
     }
 

@@ -197,8 +197,6 @@ public class EditProfileActivity extends AppCompatActivity {
                 }
                 byte[] bytes = baos.toByteArray();
 
-                in.read(bytes);
-
                 String base64 = Base64.encodeToString(bytes, Base64.DEFAULT);
                 Log.d(TAG, "Encoded image size: " + base64.length());
 
