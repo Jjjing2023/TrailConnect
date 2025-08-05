@@ -1,7 +1,10 @@
 package edu.northeastern.group2_project;
 
 import edu.northeastern.group2_project.ProfileActivity;
+
+import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -85,11 +88,13 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         ImageButton favoriteButton = findViewById(R.id.buttonFavorite);
         TabLayout tabLayout = findViewById(R.id.tabLayoutIndicator);
         ImageButton shareButton = findViewById(R.id.buttonShare);
+        Button btnGetDirections = findViewById(R.id.btnGetDirections);
         // Initialize UI elements
         TextView textEventTitle = findViewById(R.id.textEventTitle);
         TextView textEventDateTime = findViewById(R.id.textEventDateTime);
         TextView textEventAbout = findViewById(R.id.textEventAbout);
         TextView textEventLocation = findViewById(R.id.textEventLocation);
+        TextView textEventAddress = findViewById(R.id.textEventAddress);
 
         // Initialize Host & Attendees UI elements
         ImageView hostProfileImage = findViewById(R.id.hostProfileImage);
@@ -391,6 +396,10 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
             }
         }).addOnFailureListener(e -> {
             Snackbar.make(findViewById(android.R.id.content), "Failed to load event info.", Snackbar.LENGTH_SHORT).show();
+        });
+        btnGetDirections.setOnClickListener(v -> {
+            String address = textEventAddress.getText().toString();
+            openAddressInMaps(this, address);
         });
     }
 
@@ -800,5 +809,22 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                 .addOnFailureListener(e -> {
                     Log.w("EventDetail", "Error refreshing attendees list", e);
                 });
+    }
+    public static void openAddressInMaps(Context context, String address) {
+        if (address == null || address.trim().isEmpty()) {
+            Toast.makeText(context, "No address provided.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String uri = "geo:0,0?q=" + Uri.encode(address);
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+        intent.setPackage("com.google.android.apps.maps");
+        if (intent.resolveActivity(context.getPackageManager()) != null) {
+            context.startActivity(intent);
+        } else {
+            // Fallback: Show chooser for any available map app
+            Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+            Intent chooser = Intent.createChooser(fallback, "Choose Maps App");
+            context.startActivity(chooser);
+        }
     }
 }
