@@ -594,6 +594,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                             Glide.with(this)
                                     .load(profileImageUrl)
                                     .placeholder(R.drawable.ic_default_avatar)
+                                    .circleCrop()
                                     .into(hostProfileImage);
                         } else {
                             hostProfileImage.setImageResource(R.drawable.ic_default_avatar);
