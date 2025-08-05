@@ -7,13 +7,32 @@
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal">
 
+        <!-- Current avatar preview -->
+        <ImageView
+            android:id="@+id/iv_edit_avatar"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_default_avatar"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_bg"
+            android:padding="4dp"/>
+
+        <Button
+            android:id="@+id/btn_change_avatar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/change_avatar"
+            android:layout_marginTop="8dp"/>
+
+        <!-- Email and phone fields -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Email">
-
+            android:hint="@string/profile_email_hint"
+            android:layout_marginTop="24dp">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_email"
                 android:layout_width="match_parent"
@@ -24,7 +43,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Phone"
+            android:hint="@string/profile_phone_hint"
             android:layout_marginTop="16dp">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -38,9 +57,8 @@
             android:id="@+id/btn_save_profile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Save"
-            android:layout_marginTop="24dp"
-            android:layout_gravity="center_horizontal"/>
+            android:text="@string/save"
+            android:layout_marginTop="24dp"/>
 
     </LinearLayout>
 </ScrollView>
