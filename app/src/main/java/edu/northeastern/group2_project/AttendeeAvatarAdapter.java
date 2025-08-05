@@ -62,6 +62,8 @@ public class AttendeeAvatarAdapter extends RecyclerView.Adapter<AttendeeAvatarAd
                 Glide.with(context)
                         .load(attendee.getProfileImageUrl())
                         .placeholder(R.drawable.ic_default_avatar)
+                        .error(R.drawable.ic_default_avatar)
+                        .circleCrop()
                         .into(holder.avatarImage);
             } else {
                 holder.avatarImage.setImageResource(R.drawable.ic_default_avatar);
