@@ -29,12 +29,28 @@
             android:text="@string/change_avatar"
             android:layout_marginTop="8dp"/>
 
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/profile_name_hint"
+            android:layout_marginTop="16dp"
+            app:boxBackgroundMode="none">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_white_rounded_border"
+                android:inputType="textPersonName" />
+        </com.google.android.material.textfield.TextInputLayout>
+
         <!-- Email and phone fields -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/profile_email_hint"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             app:boxBackgroundMode="none">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_email"

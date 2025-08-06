@@ -7,6 +7,7 @@
     <string name="profile_phone_placeholder">Phone: (none)</string>
     <string name="edit_profile">Edit Profile</string>
     <string name="change_avatar">Change Avatar</string>
+    <string name="profile_name_hint">Name</string>
     <string name="profile_email_hint">Email</string>
     <string name="profile_phone_hint">Phone</string>
     <string name="save">Save</string>

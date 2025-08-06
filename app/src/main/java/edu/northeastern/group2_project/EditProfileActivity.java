@@ -46,7 +46,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
     private ImageView ivAvatar;
     private Button btnChangeAvatar;
-    private TextInputEditText etEmail, etPhone;
+    private TextInputEditText etName, etEmail, etPhone;
     private Button btnSave;
     private String userId;
     private FirebaseFirestore db;
@@ -110,6 +110,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
         ivAvatar = findViewById(R.id.iv_edit_avatar);
         btnChangeAvatar = findViewById(R.id.btn_change_avatar);
+        etName  = findViewById(R.id.et_name);
         etEmail  = findViewById(R.id.et_email);
         etPhone  = findViewById(R.id.et_phone);
         btnSave  = findViewById(R.id.btn_save_profile);
@@ -120,7 +121,7 @@ public class EditProfileActivity extends AppCompatActivity {
                 pickImageLauncher.launch("image/*")
         );
 
-        btnSave.setOnClickListener(v -> saveEmailPhone());
+        btnSave.setOnClickListener(v -> saveNameEmailPhone());
 
         // Test ImgBB API key
         testImgBBAPIKey();
@@ -132,6 +133,7 @@ public class EditProfileActivity extends AppCompatActivity {
                 .addOnSuccessListener(doc -> {
                     if (doc.exists()) {
                         String avatarUrl = doc.getString("profileImageUrl");
+                        String name = doc.getString("name");
                         String email = doc.getString("email");
                         String phone = doc.getString("phone");
 
@@ -145,6 +147,9 @@ public class EditProfileActivity extends AppCompatActivity {
                                     .circleCrop()
                                     .into(ivAvatar);
                         }
+                        if (!TextUtils.isEmpty(name)) {
+                            etName.setText(name);
+                        }
                         if (!TextUtils.isEmpty(email)) etEmail.setText(email);
                         if (!TextUtils.isEmpty(phone)) etPhone.setText(phone);
                     }
@@ -155,15 +160,21 @@ public class EditProfileActivity extends AppCompatActivity {
                 });
     }
 
-    private void saveEmailPhone() {
+    private void saveNameEmailPhone() {
+        String newName  = etName.getText().toString().trim();
         String newEmail = etEmail.getText().toString().trim();
         String newPhone = etPhone.getText().toString().trim();
-        if (TextUtils.isEmpty(newEmail) && TextUtils.isEmpty(newPhone)) {
+        if (TextUtils.isEmpty(newName) && TextUtils.isEmpty(newEmail) && TextUtils.isEmpty(newPhone)) {
             Toast.makeText(this, "Enter at least one field", Toast.LENGTH_SHORT).show();
             return;
         }
         Map<String,Object> updates = new HashMap<>();
         // always include an entry for each field
+        if (!newName.isEmpty()) {
+            updates.put("name", newName);
+        } else {
+            updates.put("name", FieldValue.delete());
+        }
         if (!newEmail.isEmpty()) {
             updates.put("email", newEmail);
         } else {
