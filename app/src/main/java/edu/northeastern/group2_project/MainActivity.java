@@ -203,9 +203,14 @@ public class MainActivity extends AppCompatActivity {
                                 Map<String,Object> updates = new HashMap<>();
                                 updates.put("firstName", firstName);
                                 updates.put("lastName",  lastName);
-                                updates.put("email",     email);
 
-                                // only write Google name if this is first time
+                                // only write Google email if user never update
+                                String storedEmail = snapshot.getString("email");
+                                if (storedEmail == null || storedEmail.equals(email)) {
+                                    updates.put("email", email);
+                                }
+
+                                // only write Google name if user never update
                                 if (!snapshot.contains("name")) {
                                     updates.put("name", displayName != null
                                             ? displayName

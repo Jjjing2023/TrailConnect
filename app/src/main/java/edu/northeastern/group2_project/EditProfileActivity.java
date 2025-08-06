@@ -178,7 +178,7 @@ public class EditProfileActivity extends AppCompatActivity {
         if (!newEmail.isEmpty()) {
             updates.put("email", newEmail);
         } else {
-            updates.put("email", FieldValue.delete());
+            updates.put("email", "");
         }
         if (!newPhone.isEmpty()) {
             updates.put("phone", newPhone);
