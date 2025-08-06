@@ -23,6 +23,7 @@ import com.google.firebase.firestore.SetOptions;
 public class SignUpActivity extends AppCompatActivity {
     private static final String TAG = "SignUpActivity";
     private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,7 +31,7 @@ public class SignUpActivity extends AppCompatActivity {
         setContentView(R.layout.activity_sign_up);
 
         mAuth = FirebaseAuth.getInstance();
-
+        db = FirebaseFirestore.getInstance();
         TextInputEditText firstNameInput = findViewById(R.id.firstNameInput);
         TextInputEditText lastNameInput = findViewById(R.id.lastNameInput);
         TextInputEditText emailInput = findViewById(R.id.emailInput);
@@ -57,9 +58,7 @@ public class SignUpActivity extends AppCompatActivity {
                 Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            // Create account
-            createAccount(email, password, firstName, lastName);
+            checkUniqueness(firstName, lastName, email, password);
         });
 
         backToLoginText.setOnClickListener(v -> finish());
@@ -94,7 +93,7 @@ public class SignUpActivity extends AppCompatActivity {
                                         String userId = user.getUid();
                                         String email = user.getEmail();
                                         String profileImageUrl = "https://via.placeholder.com/150";
-                                        FirebaseFirestore db = FirebaseFirestore.getInstance();
+                                        db = FirebaseFirestore.getInstance();
                                         java.util.Map<String, Object> userData = new java.util.HashMap<>();
                                         userData.put("firstName", firstName);
                                         userData.put("lastName", lastName);
@@ -138,5 +137,51 @@ public class SignUpActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         }
+    }
+    private void checkUniqueness(String firstName, String lastName, String email, String password) {
+        String fullName = firstName + " " + lastName;
+
+        // First, check if the name is already in use
+        db.collection("users")
+                .whereEqualTo("name", fullName)
+                .get()
+                .addOnCompleteListener(nameTask -> {
+                    if (nameTask.isSuccessful()) {
+                        if (!nameTask.getResult().isEmpty()) {
+                            // Name already exists
+                            Toast.makeText(SignUpActivity.this,
+                                    "This name is already in use. Please choose a different name.",
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            // Now check if email is already in use in Firestore
+                            db.collection("users")
+                                    .whereEqualTo("email", email)
+                                    .get()
+                                    .addOnCompleteListener(emailTask -> {
+                                        if (emailTask.isSuccessful()) {
+                                            if (!emailTask.getResult().isEmpty()) {
+                                                // Email already exists in Firestore
+                                                Toast.makeText(SignUpActivity.this,
+                                                        "This email is already in use.",
+                                                        Toast.LENGTH_SHORT).show();
+                                            } else {
+                                                // Both name and email are unique, proceed with account creation
+                                                createAccount(email, password, firstName, lastName);
+                                            }
+                                        } else {
+                                            Log.w(TAG, "Error checking email uniqueness", emailTask.getException());
+                                            Toast.makeText(SignUpActivity.this,
+                                                    "Error checking email. Please try again.",
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                        }
+                    } else {
+                        Log.w(TAG, "Error checking name uniqueness", nameTask.getException());
+                        Toast.makeText(SignUpActivity.this,
+                                "Error checking name. Please try again.",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 }
