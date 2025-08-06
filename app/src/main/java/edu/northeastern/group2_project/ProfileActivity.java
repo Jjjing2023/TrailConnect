@@ -223,13 +223,20 @@ public class ProfileActivity extends AppCompatActivity {
                                         .circleCrop() // make image circular
                                         .into(profileAvatar);
                             }
-                            // load email & phone
+                            // load email
                             if (email != null && !email.isEmpty()) {
                                 emailView.setText("Email: " + email);
+                            } else {
+                                emailView.setText("Email: (none)");
                             }
+
+                            // load phone
                             if (phone != null && !phone.isEmpty()) {
                                 phoneView.setText("Phone: " + phone);
+                            } else {
+                                phoneView.setText("Phone: (none)");
                             }
+
                         } else {
                             profileName.setText("User not found");
                         }

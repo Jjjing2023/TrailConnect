@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.bumptech.glide.Glide;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FieldValue;
 
 import org.json.JSONObject;
 
@@ -162,8 +163,17 @@ public class EditProfileActivity extends AppCompatActivity {
             return;
         }
         Map<String,Object> updates = new HashMap<>();
-        if (!TextUtils.isEmpty(newEmail)) updates.put("email", newEmail);
-        if (!TextUtils.isEmpty(newPhone)) updates.put("phone", newPhone);
+        // always include an entry for each field
+        if (!newEmail.isEmpty()) {
+            updates.put("email", newEmail);
+        } else {
+            updates.put("email", FieldValue.delete());
+        }
+        if (!newPhone.isEmpty()) {
+            updates.put("phone", newPhone);
+        } else {
+            updates.put("phone", FieldValue.delete());
+        }
 
         // Commit to Firestore
         db.collection("users").document(userId)
