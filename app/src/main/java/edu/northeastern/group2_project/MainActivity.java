@@ -204,9 +204,14 @@ public class MainActivity extends AppCompatActivity {
                                 updates.put("firstName", firstName);
                                 updates.put("lastName",  lastName);
                                 updates.put("email",     email);
-                                updates.put("name",      displayName != null
-                                        ? displayName
-                                        : firstName + " " + lastName);
+
+                                // only write Google name if this is first time
+                                if (!snapshot.contains("name")) {
+                                    updates.put("name", displayName != null
+                                            ? displayName
+                                            : firstName + " " + lastName);
+                                }
+
                                 // only set Google photo if user never set their own
                                 if (!snapshot.contains("profileImageUrl") && photoUri != null) {
                                     updates.put("profileImageUrl", photoUri.toString());
