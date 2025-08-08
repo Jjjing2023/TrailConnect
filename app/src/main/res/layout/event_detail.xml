@@ -19,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="20sp"
+            android:textSize="26sp"
             android:textStyle="bold"
             android:textColor="@android:color/black"
             android:maxLines="2"
@@ -30,7 +30,7 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintHorizontal_bias="0"
-            android:paddingStart="16dp"
+            android:paddingStart="20dp"
             android:paddingEnd="8dp"
             android:paddingRight="8dp"
             />
