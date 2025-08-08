@@ -7,7 +7,11 @@ import android.util.Base64;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.view.View;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -51,19 +55,35 @@ public class EditProfileActivity extends AppCompatActivity {
     private String userId;
     private FirebaseFirestore db;
 
+    // Upload progress UI elements
+    private LinearLayout uploadProgressContainer;
+    private TextView tvUploadStatus;
+    private ProgressBar pbUploadProgress;
+
     private final ActivityResultLauncher<String> pickImageLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
                 if (uri != null) {
                     Log.d(TAG, "Picked image URI: " + uri);
+                    
+                    // Show upload progress UI
+                    showUploadProgress(true, "Uploading image...");
+                    
                     uploadImageToImgBB(uri, url -> {
                         if (url != null) {
                             Log.d(TAG, "ImgBB returned URL: " + url);
                             runOnUiThread(() -> {
+                                // Hide progress UI
+                                showUploadProgress(false, "");
+                                
+                                // Update avatar image
                                 Glide.with(this)
                                         .load(url)
                                         .circleCrop()
                                         .into(ivAvatar);
+                                
+                                Toast.makeText(this, "Avatar updated successfully", Toast.LENGTH_SHORT).show();
                             });
+                            
                             // Save URL back to Firestore
                             Map<String,Object> updates = new HashMap<>();
                             updates.put("profileImageUrl", url);
@@ -72,9 +92,8 @@ public class EditProfileActivity extends AppCompatActivity {
                                     .update(updates)
                                     .addOnSuccessListener(a -> {
                                         Log.d(TAG, "Saved new avatar URL to Firestore");
-                                        runOnUiThread(() ->
-                                                Toast.makeText(this, "Avatar updated", Toast.LENGTH_SHORT).show()
-                                        );
+                                        // Set result to indicate successful update
+                                        setResult(RESULT_OK);
                                     })
                                     .addOnFailureListener(e -> {
                                         Log.e(TAG, "Failed to save avatar URL", e);
@@ -84,9 +103,13 @@ public class EditProfileActivity extends AppCompatActivity {
                                     });
                         } else {
                             Log.e(TAG, "ImgBB upload callback gave null URL");
-                            runOnUiThread(() ->
-                                    Toast.makeText(this, "Avatar upload failed", Toast.LENGTH_SHORT).show()
-                            );
+                            runOnUiThread(() -> {
+                                // Hide progress UI and show error
+                                showUploadProgress(false, "");
+                                tvUploadStatus.setText("Upload failed");
+                                
+                                Toast.makeText(this, "Avatar upload failed", Toast.LENGTH_SHORT).show();
+                            });
                         }
                     });
                 }
@@ -108,12 +131,18 @@ public class EditProfileActivity extends AppCompatActivity {
         // Initialize Firestore
         db = FirebaseFirestore.getInstance();
 
+        // Initialize UI elements
         ivAvatar = findViewById(R.id.iv_edit_avatar);
         btnChangeAvatar = findViewById(R.id.btn_change_avatar);
-        etName  = findViewById(R.id.et_name);
-        etEmail  = findViewById(R.id.et_email);
-        etPhone  = findViewById(R.id.et_phone);
-        btnSave  = findViewById(R.id.btn_save_profile);
+        etName = findViewById(R.id.et_name);
+        etEmail = findViewById(R.id.et_email);
+        etPhone = findViewById(R.id.et_phone);
+        btnSave = findViewById(R.id.btn_save_profile);
+
+        // Initialize upload progress UI
+        uploadProgressContainer = findViewById(R.id.upload_progress_container);
+        tvUploadStatus = findViewById(R.id.tv_upload_status);
+        pbUploadProgress = findViewById(R.id.pb_upload_progress);
 
         loadExistingProfile();
 
@@ -161,36 +190,27 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void saveNameEmailPhone() {
-        String newName  = etName.getText().toString().trim();
-        String newEmail = etEmail.getText().toString().trim();
-        String newPhone = etPhone.getText().toString().trim();
-        if (TextUtils.isEmpty(newName) && TextUtils.isEmpty(newEmail) && TextUtils.isEmpty(newPhone)) {
-            Toast.makeText(this, "Enter at least one field", Toast.LENGTH_SHORT).show();
+        String name = etName.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String phone = etPhone.getText().toString().trim();
+
+        if (TextUtils.isEmpty(name)) {
+            Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show();
             return;
         }
-        Map<String,Object> updates = new HashMap<>();
-        // always include an entry for each field
-        if (!newName.isEmpty()) {
-            updates.put("name", newName);
-        } else {
-            updates.put("name", FieldValue.delete());
-        }
-        if (!newEmail.isEmpty()) {
-            updates.put("email", newEmail);
-        } else {
-            updates.put("email", "");
-        }
-        if (!newPhone.isEmpty()) {
-            updates.put("phone", newPhone);
-        } else {
-            updates.put("phone", FieldValue.delete());
-        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("name", name);
+        updates.put("email", email);
+        updates.put("phone", phone);
 
         // Commit to Firestore
         db.collection("users").document(userId)
                 .update(updates)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show();
+                    // Set result and finish activity
+                    setResult(RESULT_OK);
                     finish();
                 })
                 .addOnFailureListener(e -> {
@@ -280,6 +300,22 @@ public class EditProfileActivity extends AppCompatActivity {
                 Log.d(TAG, "API key test response code: " + resp.code());
                 String json = resp.body().string();
                 Log.d(TAG, "API key test response: " + json);
+            }
+        });
+    }
+
+    /**
+     * Helper method to manage upload progress UI
+     */
+    private void showUploadProgress(boolean show, String status) {
+        runOnUiThread(() -> {
+            if (show) {
+                uploadProgressContainer.setVisibility(View.VISIBLE);
+                tvUploadStatus.setText(status);
+                btnChangeAvatar.setEnabled(false);
+            } else {
+                uploadProgressContainer.setVisibility(View.GONE);
+                btnChangeAvatar.setEnabled(true);
             }
         });
     }

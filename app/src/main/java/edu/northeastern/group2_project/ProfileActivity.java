@@ -9,6 +9,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -57,6 +59,22 @@ public class ProfileActivity extends AppCompatActivity {
     private List<Event> hostedEvents = new ArrayList<>();
     private List<Event> likedEvents = new ArrayList<>();
     private List<Event> currentEvents = new ArrayList<>();
+
+    // ActivityResultLauncher for EditProfileActivity
+    private final ActivityResultLauncher<Intent> editProfileLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                // Refresh user data when returning from EditProfileActivity
+                if (result.getResultCode() == RESULT_OK) {
+                    // Force immediate refresh of user data
+                    loadUserData();
+                    loadUserEvents();
+                    
+                    // Show a brief toast to confirm update
+                    Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show();
+                }
+            }
+    );
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -122,7 +140,7 @@ public class ProfileActivity extends AppCompatActivity {
                 // Launch edit profile screen
                 Intent i = new Intent(ProfileActivity.this, EditProfileActivity.class);
                 i.putExtra(EditProfileActivity.EXTRA_USERNAME, targetUserId);
-                startActivity(i);
+                editProfileLauncher.launch(i);
             });
         } else {
             // Viewing someone else's profile, hide edit profile button
@@ -216,12 +234,18 @@ public class ProfileActivity extends AppCompatActivity {
                             
                             // Load profile image
                             if (profileImageUrl != null && !profileImageUrl.isEmpty()) {
+                                // Clear any existing image first
+                                profileAvatar.setImageDrawable(null);
+                                
                                 Glide.with(this)
                                         .load(profileImageUrl)
                                         .placeholder(R.drawable.ic_default_avatar)
                                         .error(R.drawable.ic_default_avatar) // if load fails
                                         .circleCrop() // make image circular
                                         .into(profileAvatar);
+                            } else {
+                                // Set default avatar if no image URL
+                                profileAvatar.setImageResource(R.drawable.ic_default_avatar);
                             }
                             // load email
                             if (email != null && !email.isEmpty()) {
