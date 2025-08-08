@@ -114,11 +114,11 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         }
 
         // Contact Host button
-        ImageButton contactButton = findViewById(R.id.btn_contact);
-        contactButton.setOnClickListener(v -> {
-            // For now, just a Toast message
-            Toast.makeText(this, "Contact Host coming soon…", Toast.LENGTH_SHORT).show();
-        });
+//        ImageButton contactButton = findViewById(R.id.btn_contact);
+//        contactButton.setOnClickListener(v -> {
+//            // For now, just a Toast message
+//            Toast.makeText(this, "Contact Host coming soon…", Toast.LENGTH_SHORT).show();
+//        });
 
         // Setup RecyclerView for attendees
         attendeesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -559,9 +559,10 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                         // Load attendees information
                         if (attendeeIds != null && !attendeeIds.isEmpty()) {
                             loadAttendeesInfo(attendeeIds, attendeesCount, attendeesRecyclerView);
-                        } else {
-                            attendeesCount.setText("No attendees yet");
                         }
+//                        else {
+//                            attendeesCount.setText("No attendees yet");
+//                        }
 
                         Log.d("EventDetail", "Event data loaded successfully from Firebase");
                     } else {
