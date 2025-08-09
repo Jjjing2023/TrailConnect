@@ -237,13 +237,36 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         shareButton.setOnClickListener(v->{
             // Get current text from UI (loaded from Firebase)
             String eventTitle = textEventTitle.getText().toString();
-            String eventDescription = "Join us for an exciting hike!";
-            //todo: use firebase dynamic links to create smart URLs for sharing
-            String shareText = eventTitle + "\n\n" + eventDescription;
-
+            String eventDateTime = textEventDateTime.getText().toString();
+            String eventAbout = textEventAbout.getText().toString();
+            String eventLocation = textEventLocation.getText().toString();
+            String eventAddress = textEventAddress.getText().toString();
+            
+            // Create comprehensive share text
+            StringBuilder shareText = new StringBuilder();
+            shareText.append("🎉 ").append(eventTitle).append("\n\n");
+            
+            if (!eventDateTime.isEmpty() && !eventDateTime.equals("No DateTime")) {
+                shareText.append("📅 ").append(eventDateTime).append("\n");
+            }
+            
+            if (!eventLocation.isEmpty() && !eventLocation.equals("No Location")) {
+                shareText.append("📍 ").append(eventLocation).append("\n");
+            }
+            
+            if (!eventAddress.isEmpty() && !eventAddress.equals("No Address")) {
+                shareText.append("🏠 ").append(eventAddress).append("\n");
+            }
+            
+            if (!eventAbout.isEmpty() && !eventAbout.equals("No Description")) {
+                shareText.append("\nℹ️ ").append(eventAbout).append("\n");
+            }
+            
+            shareText.append("\nJoin us for this amazing event!");
+            
             Intent sendIntent = new Intent();
             sendIntent.setAction(Intent.ACTION_SEND);
-            sendIntent.putExtra(Intent.EXTRA_TEXT, shareText);
+            sendIntent.putExtra(Intent.EXTRA_TEXT, shareText.toString());
             sendIntent.setType("text/plain");
 
             Intent shareIntent = Intent.createChooser(sendIntent, "Share this event via");
