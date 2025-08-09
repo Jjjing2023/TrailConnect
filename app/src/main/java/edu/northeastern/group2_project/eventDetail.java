@@ -64,6 +64,8 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
     private String eventId;
     private GoogleMap mMap;
     private boolean disableProfileNavigation;
+    private Handler autoScrollHandler;
+    private boolean isAutoScrollActive = false;
 
 
     @Override
@@ -181,7 +183,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                 params.height = (int) TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP, 6, tab.getResources().getDisplayMetrics());
 
-                // dd spacing
+                // Add spacing
                 if (params instanceof ViewGroup.MarginLayoutParams) {
                     ((ViewGroup.MarginLayoutParams) params).setMargins(8, 0, 8, 0); // spacing between dots
                 }
@@ -190,23 +192,7 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
             }
         });
 
-
-        // Auto-scroll every 3 seconds
-        final Handler handler = new Handler(Looper.getMainLooper());
-        final Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                if (imageUrls.size() > 0) {
-                    int current = viewPager.getCurrentItem();
-                    int next = (current + 1) % imageUrls.size();
-                    viewPager.setCurrentItem(next, true);
-                    handler.postDelayed(this, 3000); // 3 seconds
-                }
-            }
-        };
-        if (imageUrls.size() > 0) {
-            handler.postDelayed(runnable, 3000);
-        }
+        // Auto-scroll will be started after Firebase data is loaded
 
         // make favorite button interactive
         favoriteButton.setOnClickListener(v -> {
@@ -403,6 +389,76 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
         });
     }
 
+    /**
+     * Start auto-scroll for the image carousel
+     * @param images List of image URLs to scroll through
+     * @param viewPager The ViewPager2 instance to control
+     */
+    private void startAutoScroll(List<String> images, ViewPager2 viewPager) {
+        if (images == null || images.size() <= 1) {
+            return; // No need to auto-scroll if there's only one or no images
+        }
+        
+        if (viewPager == null) {
+            return;
+        }
+        
+        // Stop any existing auto-scroll
+        stopAutoScroll();
+        
+        // Create new handler for auto-scroll
+        autoScrollHandler = new Handler(Looper.getMainLooper());
+        isAutoScrollActive = true;
+        
+        final Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                if (viewPager != null && images.size() > 1) {
+                    try {
+                        int current = viewPager.getCurrentItem();
+                        int next = (current + 1) % images.size();
+                        viewPager.setCurrentItem(next, true);
+                        if (isAutoScrollActive && autoScrollHandler != null) {
+                            autoScrollHandler.postDelayed(this, 3000); // 3 seconds
+                        }
+                    } catch (Exception e) {
+                        // Silent fail for auto-scroll errors
+                    }
+                }
+            }
+        };
+        autoScrollHandler.postDelayed(runnable, 3000);
+    }
+
+    /**
+     * Stop auto-scroll and clean up resources
+     */
+    private void stopAutoScroll() {
+        if (autoScrollHandler != null) {
+            autoScrollHandler.removeCallbacksAndMessages(null);
+            autoScrollHandler = null;
+        }
+        isAutoScrollActive = false;
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopAutoScroll();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Auto-scroll will be restarted when data is loaded
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopAutoScroll();
+    }
+
     private void openProfile(String username, String userId) {
         Intent i = new Intent(this, ProfileActivity.class);
         i.putExtra(ProfileActivity.EXTRA_USERNAME, username);
@@ -498,29 +554,32 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
                             // Update page indicator
                             TabLayout tabLayout = findViewById(R.id.tabLayoutIndicator);
                             new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-                                Log.d("TabLayoutMediator", "Binding tab for position " + position);
+                                // Tab binding callback
                             }).attach();
+                            
+                            // Start auto-scroll for multiple images
+                            startAutoScroll(imageUrls, viewPager);
                         } else {
                             // Set default image if no images available
                             List<String> defaultImage = new ArrayList<>();
                             defaultImage.add("android.resource://" + getPackageName() + "/" + R.drawable.ic_launcher_foreground);
                             ImageCarouselAdapter adapter = new ImageCarouselAdapter(this, defaultImage);
                             viewPager.setAdapter(adapter);
+                            
+                            // Start auto-scroll for default image (though it won't actually scroll)
+                            startAutoScroll(defaultImage, viewPager);
                         }
 
                         // Update map location with null checks
                         if (latitude != null && longitude != null && mMap != null) {
                             LatLng eventLocation = new LatLng(latitude, longitude);
-                            Log.d("EventDetail", "Updating map with event location: " + latitude + ", " + longitude);
                             mMap.clear();
                             mMap.addMarker(new MarkerOptions()
                                     .position(eventLocation)
                                     .title(title != null ? title : "Event Location")
                                     .snippet(location != null ? location : ""));
                             mMap.moveCamera(com.google.android.gms.maps.CameraUpdateFactory.newLatLngZoom(eventLocation, 12));
-                            Log.d("EventDetail", "Map updated with event marker and camera moved");
                         } else {
-                            Log.w("EventDetail", "Map not updated - missing coordinates or map not ready. lat: " + latitude + ", lng: " + longitude + ", map: " + (mMap != null));
                             findViewById(R.id.map).setVisibility(View.GONE);
                         }
 
@@ -564,14 +623,12 @@ public class eventDetail extends AppCompatActivity implements OnMapReadyCallback
 //                            attendeesCount.setText("No attendees yet");
 //                        }
 
-                        Log.d("EventDetail", "Event data loaded successfully from Firebase");
+                        // Event data loaded successfully
                     } else {
-                        Log.d("EventDetail", "No such document");
                         Toast.makeText(this, "Event not found", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.w("EventDetail", "Error getting document", e);
                     Toast.makeText(this, "Failed to load event data", Toast.LENGTH_SHORT).show();
                 });
     }
